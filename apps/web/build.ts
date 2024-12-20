@@ -2,7 +2,7 @@
 import { build } from "https://deno.land/x/esbuild@v0.17.19/mod.js";
 
 await build({
-  entryPoints: ["./src/main.tsx"],
+  entryPoints: ["./app/main.tsx"],
   outfile: "./dist/bundle.js",
   bundle: true,
   minify: true,
@@ -20,10 +20,10 @@ await build({
     "react",
     "@react-three/fiber",
     "three",
-    // Add any other npm dependencies here
+    // any other npm dependencies
   ],
   alias: {
-    "@lib/*": "../lib/*"
+    "@lib/*": "../lib/*"  // Adjust if needed; consider placing lib inside app or a known location
   },
   define: {
     "process.env.NODE_ENV": '"production"',
