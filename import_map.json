@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "@lib/": "./packages/lib/",
+    "@std/": "npm:@denostd/std@0.203.0/",
+    "hono/": "https://deno.land/x/hono@v4.3.11/"
+  }
+}

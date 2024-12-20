@@ -1,0 +1,14 @@
+{
+  "workspace": ["./packages/lib", "./apps/api", "./apps/web"],
+  "compilerOptions": {
+    "lib": ["deno.ns", "dom", "dom.iterable", "esnext"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "npm:react"
+  },
+  "importMap": "import_map.json",
+  "tasks": {
+    "format": "deno fmt",
+    "lint": "deno lint",
+    "test": "deno test --allow-all"
+  }
+}
