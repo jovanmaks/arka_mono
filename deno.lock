@@ -475,11 +475,11 @@
     "https://esm.sh/v135/zustand@3.7.2/denonext/zustand.mjs": "24dba6cad31968f0b23ce5a650d8bb7f1ce38d618767c5cda82bcc5f19f7fbb5"
   },
   "workspace": {
-    "dependencies": [
-      "npm:react@*"
-    ],
     "members": {
       "apps/web": {
+        "dependencies": [
+          "npm:react@*"
+        ],
         "packageJson": {
           "dependencies": [
             "npm:esbuild@~0.19.2",

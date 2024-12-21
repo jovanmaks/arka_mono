@@ -1,5 +1,3 @@
 {
-  "tasks": {
-    "test": "deno test --allow-all"
-  }
+  "tasks": {}
 }

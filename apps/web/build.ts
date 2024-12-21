@@ -9,12 +9,14 @@ await Deno.mkdir(path.join(__dirname, "dist"), { recursive: true });
 
 // Build the JS bundle
 await esbuild.build({
-  entryPoints: [path.resolve(__dirname, "./src/main.tsx")],
+  entryPoints: [path.resolve(__dirname, "./app/main.tsx")],
   bundle: true,
   outfile: path.resolve(__dirname, "dist/main.js"),
   format: "esm",
   platform: "browser",
   external: ["react", "react-dom", "react-dom/client"],
+  minify: true,
+  sourcemap: true,
 });
 
 // Create index.html
