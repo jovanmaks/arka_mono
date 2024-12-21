@@ -9,6 +9,8 @@
   "tasks": {
     "format": "deno fmt",
     "lint": "deno lint",
-    "test": "deno test --allow-all"
+    "test": "deno test --allow-all",
+    "app:build": "deno run -A apps/web/build.ts",
+    "app:serve": "deno run --allow-net --allow-read https://deno.land/std@0.203.0/http/file_server.ts apps/web"
   }
 }

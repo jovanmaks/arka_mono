@@ -1,9 +1,0 @@
-{
-  "tasks": {
-    "build": "deno run -A build.ts",
-    "serve": "deno run --allow-net --allow-read https://deno.land/std@0.203.0/http/file_server.ts ."
-  },
-  "imports": {
-    "esbuild": "npm:esbuild@0.19.2"
-  }
-}
