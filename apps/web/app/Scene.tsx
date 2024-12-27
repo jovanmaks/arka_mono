@@ -1,10 +1,9 @@
 // apps/web/src/Scene.tsx
 
-// deno-lint-ignore no-unused-vars
-import React, { useRef } from "https://esm.sh/react@18.2.0";
-import { Canvas, MeshProps, useFrame } from "https://esm.sh/@react-three/fiber@8.13.5";
-import * as THREE from "https://esm.sh/three@0.154.0";
-import { calculateBoxVolume } from "../../../packages/lib/mod.ts";
+import React, { useRef } from "react";
+import { Canvas as ThreeCanvas, MeshProps, useFrame } from "@react-three/fiber";
+import * as THREE from "three";
+import { calculateBoxVolume } from "@lib/mod.ts"; // Adjusted import based on import map
 
 function SpinningBox(props: MeshProps) {
   const ref = useRef<THREE.Mesh>(null!);
@@ -27,11 +26,10 @@ function SpinningBox(props: MeshProps) {
 export default function Scene() {
   console.log("Volume of a 1x2x3 box:", calculateBoxVolume(1, 2, 3));
   return (
-    <Canvas>
+    <ThreeCanvas>
       <ambientLight />
       <pointLight position={[10, 10, 10]} />
       <SpinningBox position={[0, 0, 0]} />
-    </Canvas>
+    </ThreeCanvas>
   );
 }
-

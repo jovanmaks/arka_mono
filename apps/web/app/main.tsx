@@ -1,6 +1,8 @@
 // apps/web/src/main.tsx
 import React from "react";
+// import React from "https://esm.sh/react@18.2.0"; // Add this line
 import { createRoot } from "react-dom/client";
+// import { createRoot } from "https://esm.sh/react-dom@18.2.0/client";
 import App from "./App.tsx";
 
 const rootElement = document.getElementById("root");

@@ -1,32 +1,33 @@
-// apps/web/build.ts
+/// <reference lib="deno.ns" />
 import * as esbuild from "esbuild";
-import * as path from "std/path/mod.ts";
+import * as path from "https://deno.land/std/path/mod.ts";
 
 const __dirname = path.dirname(path.fromFileUrl(import.meta.url));
+const projectRoot = path.resolve(__dirname, "../..");
 
 // Create dist directory if it doesn't exist
 await Deno.mkdir(path.join(__dirname, "dist"), { recursive: true });
 
 // Build the JS bundle
 await esbuild.build({
-  entryPoints: [path.resolve(__dirname, "./app/main.tsx")],
+  entryPoints: [path.resolve(__dirname, "./app/main.tsx")], // Corrected path
   bundle: true,
   outfile: path.resolve(__dirname, "dist/main.js"),
   format: "esm",
   platform: "browser",
-  external: ["react", "react-dom", "react-dom/client"],
   minify: true,
   sourcemap: true,
+  alias: {
+    "@lib": path.resolve(projectRoot, "packages/lib"),
+  },
 });
 
-// Create index.html
+// Create index.html without external script tags for React
 const html = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <title>Arka Web</title>
-  <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
 </head>
 <body>
   <div id="root"></div>

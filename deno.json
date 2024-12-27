@@ -1,15 +1,17 @@
 {
   "workspace": ["./packages/lib", "./apps/api", "./apps/web"],
   "compilerOptions": {
-    "lib": ["deno.ns", "esnext", "dom"]
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "lib": ["dom", "dom.iterable", "esnext"]
   },
-  "importMap": "import_map.json",
+  "importMap": "./import_map.json",
   "tasks": {
     "format": "deno fmt",
     "lint": "deno lint",
     "test": "deno test --allow-all",
     "app:build": "deno run -A apps/web/build.ts",
-    "app:serve": "deno run --allow-net --allow-read https://deno.land/std@0.203.0/http/file_server.ts apps/web",
+    "app:serve": "deno run --allow-net --allow-read https://deno.land/std@0.203.0/http/file_server.ts apps/web/dist",
     "api:start": "deno run --allow-net --allow-read --import-map=./import_map.json --watch apps/api/src/main.ts",
     "lib:test": "cd packages/lib && deno test --allow-all"
   }

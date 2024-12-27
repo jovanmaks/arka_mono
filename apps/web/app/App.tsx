@@ -1,7 +1,8 @@
 // apps/web/src/App.tsxyy
 
 // deno-lint-ignore no-unused-vars
-import React from "https://esm.sh/react@18.2.0"; // Add this line
+// import React from "https://esm.sh/react@18.2.0"; // Add this line
+import React from "react";
 import Scene from "./Scene.tsx";
 
 export default function App() {
