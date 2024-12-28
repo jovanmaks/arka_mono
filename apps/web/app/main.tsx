@@ -1,11 +1,10 @@
-// apps/web/src/main.tsx
+// File: apps/web/src/main.tsx
 import React from "react";
-// import React from "https://esm.sh/react@18.2.0"; // Add this line
 import { createRoot } from "react-dom/client";
-// import { createRoot } from "https://esm.sh/react-dom@18.2.0/client";
-import App from "./App.tsx";
+import App from "./App";
 
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Root element not found");
+
 const root = createRoot(rootElement);
-root.render(React.createElement(App));
+root.render(<App />);

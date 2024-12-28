@@ -1,10 +1,9 @@
-// apps/web/src/Scene.tsx
-
+// File: apps/web/src/Scene.tsx
 import React, { useRef } from "react";
 import { Canvas as ThreeCanvas, MeshProps, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { calculateBoxVolume } from "@lib/mod.ts"; // Adjusted import based on import map
 
+// A simple spinning box
 function SpinningBox(props: MeshProps) {
   const ref = useRef<THREE.Mesh>(null!);
 
@@ -24,7 +23,6 @@ function SpinningBox(props: MeshProps) {
 }
 
 export default function Scene() {
-  console.log("Volume of a 1x2x3 box:", calculateBoxVolume(1, 2, 3));
   return (
     <ThreeCanvas>
       <ambientLight />

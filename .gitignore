@@ -28,3 +28,7 @@ venv/
 env/
 .env/
 ENV/
+
+# Image used in local development
+apps/api/uploads/*
+!apps/api/uploads/.gitkeep
