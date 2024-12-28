@@ -3,28 +3,36 @@ import React, { useState } from "react";
 import Scene from "./Scene";
 
 export default function App() {
-  // State for selected file and its preview
+  // 1. File Upload / Preview State
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewURL, setPreviewURL] = useState<string | null>(null);
 
-  // State for the annotated image
+  // 2. Output: Annotated image
   const [annotatedURL, setAnnotatedURL] = useState<string | null>(null);
 
-  // Status messages
+  // 3. Threshold and Clusters as user input
+  const [threshold, setThreshold] = useState<string>("100");
+  const [clusters, setClusters] = useState<string>("20");
+
+  // 4. Status messages
   const [status, setStatus] = useState<string>("");
 
-  // Handle file input changes
+  /**
+   * Handle file input change
+   */
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
       setPreviewURL(URL.createObjectURL(file));
-      setAnnotatedURL(null);  // Reset annotated image
+      setAnnotatedURL(null);
       setStatus("");
     }
   }
 
-  // Handle the scan button click
+  /**
+   * Handle the "Scan" button click
+   */
   async function handleScanClick() {
     if (!selectedFile) {
       setStatus("No file selected!");
@@ -37,24 +45,24 @@ export default function App() {
       // Prepare form data
       const formData = new FormData();
       formData.append("image", selectedFile);
-      formData.append("thresh_val", "100");  // Example threshold value
-      formData.append("clusters", "20");     // Example number of clusters
+      formData.append("thresh_val", threshold);   // from user input
+      formData.append("clusters", clusters);      // from user input
 
-      // Make POST request to Flask API
+      // POST request to Flask
       const response = await fetch("http://localhost:5000/process-floorplan", {
         method: "POST",
-        body: formData
+        body: formData,
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        // Attempt to read error message from JSON
+        const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `Server error: ${response.statusText}`);
       }
 
       const data = await response.json();
       setStatus("Processing complete!");
 
-      // Extract the annotated image path
       if (data.clusteredImagePath) {
         const imageUrl = `http://localhost:5000/${data.clusteredImagePath}`;
         setAnnotatedURL(imageUrl);
@@ -67,11 +75,25 @@ export default function App() {
     }
   }
 
+  /**
+   * Handle the "Clear" button click
+   * Resets everything so a new image can be uploaded fresh.
+   */
+  function handleClear() {
+    setSelectedFile(null);
+    setPreviewURL(null);
+    setAnnotatedURL(null);
+    setThreshold("100");   // optional: reset to default
+    setClusters("20");     // optional: reset to default
+    setStatus("");
+  }
+
   return (
     <div style={{ width: "100vw", height: "100vh", display: "flex" }}>
-      {/* Left Column: Upload & Results */}
+      {/* LEFT COLUMN */}
       <div style={{ width: "50%", display: "flex", flexDirection: "column" }}>
-        {/* File Upload & Preview */}
+        
+        {/* 1. Upload & Preview */}
         <div style={{ flex: 1, border: "1px solid gray", padding: "1rem", overflowY: "auto" }}>
           <h2>Floorplan Uploader</h2>
           <input type="file" accept="image/*" onChange={handleFileChange} />
@@ -87,16 +109,40 @@ export default function App() {
           )}
         </div>
 
-        {/* Scan Button & Annotated Image */}
+        {/* 2. Controls & Result */}
         <div style={{ flex: 1, border: "1px solid gray", padding: "1rem", overflowY: "auto" }}>
-          <h2>Scan Result</h2>
-          <button onClick={handleScanClick} disabled={!selectedFile}>
+          <h2>Scan Settings</h2>
+          {/* Threshold Input */}
+          <label style={{ display: "block", marginBottom: "0.5rem" }}>
+            Threshold:{" "}
+            <input
+              type="number"
+              value={threshold}
+              onChange={(e) => setThreshold(e.target.value)}
+              style={{ width: "80px" }}
+            />
+          </label>
+          {/* Clusters Input */}
+          <label style={{ display: "block", marginBottom: "1rem" }}>
+            Clusters:{" "}
+            <input
+              type="number"
+              value={clusters}
+              onChange={(e) => setClusters(e.target.value)}
+              style={{ width: "80px" }}
+            />
+          </label>
+
+          {/* Buttons: Scan & Clear */}
+          <button onClick={handleScanClick} disabled={!selectedFile} style={{ marginRight: "1rem" }}>
             Scan Floorplan
           </button>
+          <button onClick={handleClear}>
+            Clear
+          </button>
+
           <div style={{ marginTop: "1rem" }}>
             <p>Status: {status}</p>
-
-            {/* Display Annotated Image */}
             {annotatedURL && (
               <div>
                 <p>Annotated Skeleton:</p>
@@ -109,9 +155,10 @@ export default function App() {
             )}
           </div>
         </div>
+
       </div>
 
-      {/* Right Column: Spinning 3D Cube */}
+      {/* RIGHT COLUMN: 3D Scene */}
       <div style={{ width: "50%", border: "1px solid gray" }}>
         <Scene />
       </div>
