@@ -138,9 +138,6 @@
     },
     "members": {
       "apps/web": {
-        "dependencies": [
-          "npm:react@*"
-        ],
         "packageJson": {
           "dependencies": [
             "npm:esbuild@~0.19.2",
