@@ -83,8 +83,8 @@ export default function App() {
     setSelectedFile(null);
     setPreviewURL(null);
     setAnnotatedURL(null);
-    setThreshold("100");   // optional: reset to default
-    setClusters("20");     // optional: reset to default
+    setThreshold("150");   // optional: reset to default
+    setClusters("150");     // optional: reset to default
     setStatus("");
   }
 

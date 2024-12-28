@@ -73,7 +73,7 @@ def skeletonize_image(img_path, thresh_val=100):
     skel = morphological_thinning(closed)
     print("[DEBUG] After thinning shape:", skel.shape)
 
-    # 5. Force final skeleton to original size (W×H)
+    # 5. Resize if needed
     if (skel.shape[0] != orig_height) or (skel.shape[1] != orig_width):
         print("[INFO] Resizing skeleton to match original.")
         skel = cv2.resize(skel, (orig_width, orig_height), interpolation=cv2.INTER_NEAREST)
@@ -93,17 +93,23 @@ def classify_point(neighborhood):
     if center == 0:
         return 'none'
     
+    # Count neighbors
     neighbors = np.sum(pattern) - center
+    
+    # 8 neighbors in clockwise order
     pixels = [
         pattern[0,1], pattern[0,2], pattern[1,2], pattern[2,2],
         pattern[2,1], pattern[2,0], pattern[1,0], pattern[0,0]
     ]
+    
+    # Count transitions from 0 to 1
     transitions = 0
     pixels.append(pixels[0])  # wrap-around
     for i in range(8):
         if pixels[i] == 0 and pixels[i+1] == 1:
             transitions += 1
     
+    # Logic
     if neighbors == 1:
         return 'endpoint'
     elif transitions == 2:
@@ -116,7 +122,8 @@ def classify_point(neighborhood):
 
 def detect_corners(skel, max_corners=500, quality_level=0.001, min_distance=10):
     """
-    Corner detection using goodFeaturesToTrack plus local pattern analysis.
+    Use cv2.goodFeaturesToTrack + classify_point to find corners, endpoints, T-junctions.
+    Returns a list of (x, y) points.
     """
     corners = cv2.goodFeaturesToTrack(
         skel, 
@@ -131,25 +138,23 @@ def detect_corners(skel, max_corners=500, quality_level=0.001, min_distance=10):
         corners = corners.astype(int)
         for corner in corners:
             x, y = corner.ravel()
-            # Convert NumPy types to native Python types
-            x, y = int(x), int(y)
-            # 3×3 neighborhood check
+            # Check a 3×3 neighborhood
             if 0 < y < skel.shape[0]-1 and 0 < x < skel.shape[1]-1:
                 neighborhood = skel[y-1:y+2, x-1:x+2]
                 point_type = classify_point(neighborhood)
                 if point_type != 'none':
                     important_points.append([x, y])
 
-    # Additional pass to find endpoints / T-junctions
+    # Additional pass for endpoints/T-junctions missed
     height, width = skel.shape
     for y in range(1, height-1):
         for x in range(1, width-1):
-            if skel[y,x] == 255:
+            if skel[y, x] == 255:
                 neighborhood = skel[y-1:y+2, x-1:x+2]
                 point_type = classify_point(neighborhood)
                 if point_type in ['endpoint', 't_junction']:
                     # Avoid duplicates if already close
-                    if not any(abs(x-px) < min_distance and abs(y-py) < min_distance 
+                    if not any(abs(x - px) < min_distance and abs(y - py) < min_distance 
                                for px, py in important_points):
                         important_points.append([x, y])
     
@@ -157,7 +162,7 @@ def detect_corners(skel, max_corners=500, quality_level=0.001, min_distance=10):
 
 def cluster_points(points, num_clusters=20):
     """
-    Clusters corner points using KMeans, returns cluster centers (x, y).
+    Clusters corner points using KMeans, returning cluster centers (x, y).
     """
     if len(points) == 0:
         return []
@@ -169,39 +174,48 @@ def cluster_points(points, num_clusters=20):
 
 def fit_line_to_clustered_points(image, clustered_points, draw=True):
     """
-    (Optional) For each cluster, do a line fit on the local region.
-    If 'draw' is True, draws the corners on the image.
+    Color-code each point based on classify_point:
+      Blue=endpoints, Red=corners, Green=T-junction, Orange=others
     """
-    for center in clustered_points:
-        x_c, y_c = map(int, center)
-        if draw:
-            h, w = image.shape[:2]
-            y0, y1 = max(0,y_c-1), min(h,y_c+2)
-            x0, x1 = max(0,x_c-1), min(w,x_c+2)
-            neighborhood = image[y0:y1, x0:x1, 0]
-            if neighborhood.shape[0] < 3 or neighborhood.shape[1] < 3:
-                point_type = 'none'
-            else:
-                point_type = classify_point(neighborhood)
-            
-            if point_type == 'corner':
-                color = (0, 0, 255)  # Red
-            elif point_type == 'endpoint':
-                color = (255, 0, 0)  # Blue
-            elif point_type == 't_junction':
-                color = (0, 255, 0)  # Green
-            else:
-                color = (0, 165, 255) # Orange
+    if not draw:
+        return
 
-            cv2.circle(image, (x_c, y_c), 3, color, -1)
+    h, w = image.shape[:2]
+
+    for (x_c, y_c) in clustered_points:
+        x_c = int(x_c)
+        y_c = int(y_c)
+
+        # Get 3×3 patch
+        y0, y1 = max(0, y_c - 1), min(h, y_c + 2)
+        x0, x1 = max(0, x_c - 1), min(w, x_c + 2)
+
+        neighborhood = image[y0:y1, x0:x1, 0]  # just the first channel
+        if neighborhood.shape[0] < 3 or neighborhood.shape[1] < 3:
+            point_type = 'none'
+        else:
+            point_type = classify_point(neighborhood)
+
+        if point_type == 'endpoint':
+            color = (255, 0, 0)   # Blue
+        elif point_type == 'corner':
+            color = (0, 0, 255)   # Red
+        elif point_type == 't_junction':
+            color = (0, 255, 0)   # Green
+        else:
+            color = (0, 165, 255) # Orange
+
+        cv2.circle(image, (x_c, y_c), 3, color, -1)
 
 def detect_straight_walls_hough(skel, threshold=50, min_line_length=50, max_line_gap=10):
     """
-    Detect lines from the skeleton using Hough Transform.
+    Hough transform for lines in the skeleton
     """
     edges = cv2.Canny(skel, 50, 150, apertureSize=3)
     lines = cv2.HoughLinesP(
-        edges, rho=1, theta=np.pi/180,
+        edges, 
+        rho=1, 
+        theta=np.pi/180,
         threshold=threshold,
         minLineLength=min_line_length,
         maxLineGap=max_line_gap
@@ -212,50 +226,53 @@ def detect_straight_walls_hough(skel, threshold=50, min_line_length=50, max_line
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Process a floorplan image to detect corners and cluster points.'
+        description='Process a floorplan image to detect corners/endpoints/T-junctions.'
     )
-    parser.add_argument('input_image', help='Path to the input image file')
-    parser.add_argument('--thresh_val', type=int, default=1, help='Threshold value for binarizing')
-    parser.add_argument('--clusters', type=int, default=50, help='Number of clusters for corner points')
+    parser.add_argument('input_image', help='Path to input image')
+    parser.add_argument('--thresh_val', type=int, default=100, help='Binarization threshold')
+    parser.add_argument('--clusters', type=int, default=20, help='Number of clusters for corner points')
     args = parser.parse_args()
 
     input_image_path = args.input_image
     thresh_val = args.thresh_val
     num_clusters = args.clusters
 
+    # Ensure file exists
     if not os.path.exists(input_image_path):
         print(f"File not found: {input_image_path}")
         return
 
-    output_dir = os.path.dirname(input_image_path) or '.'
-
     # 1. Skeletonize
     skel = skeletonize_image(input_image_path, thresh_val=thresh_val)
+    output_dir = os.path.dirname(input_image_path) or '.'
+
     skel_output_path = os.path.join(output_dir, "skeletonized.png")
     cv2.imwrite(skel_output_path, skel)
 
-    # 2. Detect corners
+    # 2. Find corners
     corners = detect_corners(skel, max_corners=500, quality_level=0.001, min_distance=10)
     print(f"Detected {len(corners)} corners.")
 
-    # 3. Cluster corner points
+    # 3. KMeans cluster
     clustered_pts = cluster_points(corners, num_clusters=num_clusters)
-    print("Clustered corners:", clustered_pts)
+    print("Clustered corners:\n", clustered_pts)
 
-    # 4. Visualize
+    # 4. Convert to BGR, draw points
     skel_bgr = cv2.cvtColor(skel, cv2.COLOR_GRAY2BGR)
     fit_line_to_clustered_points(skel_bgr, clustered_pts, draw=True)
-    clustered_output_path = os.path.join(output_dir, "clustered_points.png")
-    cv2.imwrite(clustered_output_path, skel_bgr)
 
-    # 5. (Optional) Hough lines
+    # 5. Hough lines
     lines = detect_straight_walls_hough(skel)
     for (x1, y1, x2, y2) in lines:
         cv2.line(skel_bgr, (x1, y1), (x2, y2), (0, 255, 0), 2)
-    hough_output_path = os.path.join(output_dir, "hough_lines.png")
-    cv2.imwrite(hough_output_path, skel_bgr)
 
-    print(f"Processing complete. Outputs saved in: {output_dir}")
+    # 6. Save annotated
+    clustered_output_path = os.path.join(output_dir, "clustered_points.png")
+    cv2.imwrite(clustered_output_path, skel_bgr)
+
+    print(f"Processing complete. Results in {output_dir}")
     print("Skeleton:", skel_output_path)
     print("Clustered corners visualization:", clustered_output_path)
-    print("Hough lines visualization:", hough_output_path)
+
+if __name__ == "__main__":
+    main()

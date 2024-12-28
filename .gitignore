@@ -32,3 +32,5 @@ ENV/
 # Image used in local development
 apps/api/uploads/*
 !apps/api/uploads/.gitkeep
+apps/api/src/uploads/*
+!apps/api/src/uploads/.gitkeep
