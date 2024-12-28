@@ -19,6 +19,11 @@
     
     "app:serve": "deno task api:scanner & deno task web:serve",
     
-    "lib:test": "cd packages/lib && deno test --allow-all"
+    "lib:test": "cd packages/lib && deno test --allow-all",
+
+    "deploy": "deployctl deploy --project arka"
+  },
+    "deploy": {
+    "entrypoint": "apps/web/app/main.tsx"
   }
 }
