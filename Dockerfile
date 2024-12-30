@@ -16,19 +16,25 @@ RUN apt-get update && \
     libgl1-mesa-glx \
     curl \
     unzip \
-    supervisor && break || sleep 15; done && \
+    supervisor \
+    nodejs \
+    npm && break || sleep 15; done && \
     rm -rf /var/lib/apt/lists/*
 
 # Set the working directory
 WORKDIR /app
 
-# Create uploads directory and set permissions
+# Ensure uploads directory exists with proper permissions
 RUN mkdir -p /app/apps/api/src/uploads && \
-    chmod 777 /app/apps/api/src/uploads
+    chmod -R 777 /app/apps/api/src
 
 # Copy and install Python dependencies
 COPY apps/api/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy package files for npm install
+COPY package*.json ./
+RUN npm install
 
 # Install Deno with retry mechanism
 RUN for i in {1..3}; do \
@@ -41,7 +47,7 @@ ENV PATH="$DENO_INSTALL/bin:$PATH"
 ENV HOST=0.0.0.0
 
 # Copy the rest of the application code
-COPY . /app
+COPY . .
 
 # Build the frontend
 RUN deno task web:build
