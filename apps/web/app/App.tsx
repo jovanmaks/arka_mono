@@ -48,8 +48,9 @@ export default function App() {
       formData.append("thresh_val", threshold);   // from user input
       formData.append("clusters", clusters);      // from user input
 
-      // POST request to Flask
-      const response = await fetch("http://localhost:5000/process-floorplan", {
+      // Use consistent hostname for both API and images
+      const baseUrl = `http://${window.location.hostname}:5000`;
+      const response = await fetch(`${baseUrl}/process-floorplan`, {
         method: "POST",
         body: formData,
       });
@@ -64,7 +65,7 @@ export default function App() {
       setStatus("Processing complete!");
 
       if (data.clusteredImagePath) {
-        const imageUrl = `http://localhost:5000/${data.clusteredImagePath}`;
+        const imageUrl = `${baseUrl}/${data.clusteredImagePath}`;
         setAnnotatedURL(imageUrl);
       } else {
         setStatus("No annotated image path in the response.");

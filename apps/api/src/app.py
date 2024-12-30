@@ -4,7 +4,7 @@ import uuid
 import numpy as np
 
 from flask import Flask, request, jsonify, send_from_directory
-from flask_cors import CORS
+from flask_cors import CORS  # Add this import
 from werkzeug.utils import secure_filename
 import cv2
 
@@ -18,7 +18,13 @@ from detect_floorplan import (
 )
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+CORS(app, resources={
+    r"/*": {
+        "origins": "*",
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type"],
+    }
+})
 
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -34,7 +40,9 @@ def index():
 
 @app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
-    return send_from_directory(UPLOAD_FOLDER, filename)
+    response = send_from_directory(UPLOAD_FOLDER, filename)
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    return response
 
 @app.route('/process-floorplan', methods=['POST'])
 def process_floorplan():
@@ -129,4 +137,4 @@ def process_floorplan():
 
 if __name__ == '__main__':
     # Start dev server
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5000, threaded=True)

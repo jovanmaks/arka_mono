@@ -1,5 +1,6 @@
 Flask==2.3.2
 Flask-CORS==4.0.0
+flask-cors==4.0.0
 opencv-python==4.8.0.74
 opencv-contrib-python==4.8.0.74
 # opencv-python-headless==4.7.0.72
