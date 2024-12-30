@@ -26,7 +26,8 @@ CORS(app, resources={
     }
 })
 
-UPLOAD_FOLDER = 'uploads'
+# Use absolute path for upload folder
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'bmp', 'tiff'}

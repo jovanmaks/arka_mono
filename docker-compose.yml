@@ -1,0 +1,15 @@
+
+version: '3.8'
+services:
+  app:
+    build: .
+    ports:
+      - "5000:5000"
+      - "8000:8000"
+    volumes:
+      - uploads_data:/app/apps/api/src/uploads
+    environment:
+      - UPLOAD_FOLDER=/app/apps/api/src/uploads
+
+volumes:
+  uploads_data:

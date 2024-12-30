@@ -22,6 +22,10 @@ RUN apt-get update && \
 # Set the working directory
 WORKDIR /app
 
+# Create uploads directory and set permissions
+RUN mkdir -p /app/apps/api/src/uploads && \
+    chmod 777 /app/apps/api/src/uploads
+
 # Copy and install Python dependencies
 COPY apps/api/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
