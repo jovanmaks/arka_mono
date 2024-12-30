@@ -12,7 +12,7 @@
     "test": "deno test --allow-all",
 
     "web:build": "deno run -A apps/web/build.ts",
-    "web:serve": "deno run --allow-net --allow-read https://deno.land/std@0.203.0/http/file_server.ts apps/web/dist --host=localhost",
+    "web:serve": "deno run --allow-net --allow-read https://deno.land/std@0.203.0/http/file_server.ts apps/web/dist --host=0.0.0.0 --port 8000",
     
     "api:scanner": "cd apps/api/src && python app.py",
     "api:serve": "deno run --allow-net --allow-read --import-map=./import_map.json --watch apps/api/src/main.ts",
@@ -23,7 +23,7 @@
 
     "deploy": "deployctl deploy --project arka"
   },
-    "deploy": {
+  "deploy": {
     "entrypoint": "apps/web/app/main.tsx"
   }
 }
