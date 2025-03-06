@@ -257,7 +257,7 @@ export function renderImageDataToCanvas(
  * Skeletonize an image using the Zhang-Suen thinning algorithm
  * This is the main function that processes an image into a skeleton
  */
-export async function skeletonizeImage(
+export async function skeletonize2Image(
   imageSource: HTMLImageElement | string | Blob,
   threshVal: number = 128
 ): Promise<ProcessedImage> {

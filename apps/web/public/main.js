@@ -9,6 +9,7 @@ const fileInput = document.getElementById('fileInput');
 const previewContainer = document.getElementById('previewContainer');
 const thresholdInput = document.getElementById('thresholdInput');
 const clustersInput = document.getElementById('clustersInput');
+const algorithmSelect = document.getElementById('algorithmSelect');
 const scanButton = document.getElementById('scanButton');
 const clearButton = document.getElementById('clearButton');
 const statusContainer = document.getElementById('statusContainer');
@@ -24,7 +25,7 @@ const resultsStatusContainer = document.getElementById('resultsStatusContainer')
 
 // Import our floorplan processor library
 import { 
-  skeletonizeImage, 
+  skeletonizeImage,
   renderImageDataToCanvas,
   detectCorners,
   clusterPoints,
@@ -142,36 +143,6 @@ async function handleScanTsClick() {
         // 1. Skeletonize the image
         updateResultsStatus('Skeletonizing image...');
         const processedImage = await skeletonizeImage(img, threshVal);
-        
-        // Comment out the rest of the processing steps to only show skeletonized image
-        /*
-        // 2. Detect corners
-        updateResultsStatus('Detecting corners...');
-        const corners = detectCorners(processedImage.skeleton);
-        console.log(`Detected ${corners.length} corners.`);
-        
-        // 3. Cluster corners
-        updateResultsStatus('Clustering corners...');
-        const clusteredPoints = clusterPoints(corners, clusters);
-        
-        // 4. Convert to BGR for visualization (similar to OpenCV)
-        updateResultsStatus('Rendering results...');
-        
-        // Create a colored version of the skeleton for visualization
-        const visualImageData = convertToRGB(processedImage.skeleton);
-        
-        // 5. Draw the clustered points
-        drawClusteredPoints(visualImageData, clusteredPoints);
-        
-        // 6. Detect and draw lines
-        const lines = detectStraightWallsHough(
-            processedImage.skeleton, 
-            25,  // threshold (lower than Python to account for simpler implementation)
-            30,  // minLineLength
-            10   // maxLineGap
-        );
-        drawLines(visualImageData, lines);
-        */
         
         // Render only the skeletonized image to canvas
         renderImageDataToCanvas(processedImage.skeleton, canvas);
