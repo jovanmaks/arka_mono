@@ -1,5 +1,5 @@
 // File: apps/web/src/App.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Scene from "./Scene";
 
 export default function App() {
@@ -16,6 +16,34 @@ export default function App() {
 
   // 4. Status messages
   const [status, setStatus] = useState<string>("");
+
+  // Canvas state
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Initialize canvas when annotated image changes
+  useEffect(() => {
+    if (annotatedURL && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const img = new Image();
+      img.onload = () => {
+        // Set canvas size to match image
+        canvas.width = img.width;
+        canvas.height = img.height;
+        
+        // Draw image
+        ctx.drawImage(img, 0, 0);
+
+        // Example: Draw a simple rectangle
+        ctx.strokeStyle = '#FF0000';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(50, 50, 200, 150);
+      };
+      img.src = annotatedURL;
+    }
+  }, [annotatedURL]);
 
   /**
    * Handle file input change
@@ -45,8 +73,8 @@ export default function App() {
       // Prepare form data
       const formData = new FormData();
       formData.append("image", selectedFile);
-      formData.append("thresh_val", threshold);   // from user input
-      formData.append("clusters", clusters);      // from user input
+      formData.append("thresh_val", threshold);
+      formData.append("clusters", clusters);
 
       // Use consistent hostname for both API and images
       const baseUrl = `http://${window.location.hostname}:5000`;
@@ -56,7 +84,6 @@ export default function App() {
       });
 
       if (!response.ok) {
-        // Attempt to read error message from JSON
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `Server error: ${response.statusText}`);
       }
@@ -78,14 +105,13 @@ export default function App() {
 
   /**
    * Handle the "Clear" button click
-   * Resets everything so a new image can be uploaded fresh.
    */
   function handleClear() {
     setSelectedFile(null);
     setPreviewURL(null);
     setAnnotatedURL(null);
-    setThreshold("150");   // optional: reset to default
-    setClusters("150");     // optional: reset to default
+    setThreshold("150");
+    setClusters("150");
     setStatus("");
   }
 
@@ -113,7 +139,6 @@ export default function App() {
         {/* 2. Controls & Result */}
         <div style={{ flex: 1, border: "1px solid gray", padding: "1rem", overflowY: "auto" }}>
           <h2>Scan Settings</h2>
-          {/* Threshold Input */}
           <label style={{ display: "block", marginBottom: "0.5rem" }}>
             Threshold:{" "}
             <input
@@ -123,7 +148,6 @@ export default function App() {
               style={{ width: "80px" }}
             />
           </label>
-          {/* Clusters Input */}
           <label style={{ display: "block", marginBottom: "1rem" }}>
             Clusters:{" "}
             <input
@@ -134,7 +158,6 @@ export default function App() {
             />
           </label>
 
-          {/* Buttons: Scan & Clear */}
           <button onClick={handleScanClick} disabled={!selectedFile} style={{ marginRight: "1rem" }}>
             Scan Floorplan
           </button>
@@ -156,10 +179,9 @@ export default function App() {
             )}
           </div>
         </div>
-
       </div>
 
-      {/* RIGHT COLUMN: 3D Scene */}
+      {/* RIGHT COLUMN: Canvas */}
       <div style={{ width: "50%", border: "1px solid gray" }}>
         <Scene />
       </div>

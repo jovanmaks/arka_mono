@@ -156,21 +156,26 @@
     "https://deno.land/x/hono@v4.3.11/validator/validator.ts": "53f3d2ad442e22f0bc2d85b7d8d90320d4e5ecf5fdd58882f906055d33a18e13"
   },
   "workspace": {
+    "dependencies": [
+      "npm:@denostd/std@0.203.0",
+      "npm:esbuild@0.19.2",
+      "npm:react-dom@18.3.1",
+      "npm:react@18.3.1"
+    ],
     "packageJson": {
       "dependencies": [
-        "npm:@react-three/drei@^9.120.4",
-        "npm:@react-three/fiber@^8.17.10",
         "npm:@types/react-dom@^19.0.2",
         "npm:@types/react@^19.0.2",
-        "npm:@types/three@0.171",
         "npm:esbuild@~0.19.12",
         "npm:react-dom@^18.3.1",
-        "npm:react@^18.3.1",
-        "npm:three@0.154"
+        "npm:react@^18.3.1"
       ]
     },
     "members": {
       "apps/web": {
+        "dependencies": [
+          "npm:react@*"
+        ],
         "packageJson": {
           "dependencies": [
             "npm:esbuild@~0.19.2",
