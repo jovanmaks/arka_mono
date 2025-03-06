@@ -15,10 +15,12 @@ const statusContainer = document.getElementById('statusContainer');
 const apiResultContainer = document.getElementById('apiResultContainer');
 const tsResultContainer = document.getElementById('tsResultContainer');
 const canvas = document.getElementById('floorplanCanvas');
+const canvasContainer = document.getElementById('canvasContainer');
 const ctx = canvas.getContext('2d');
 const scanTsButton = document.getElementById('scanTsButton');
 const apiResultsTab = document.getElementById('apiResultsTab');
 const tsResultsTab = document.getElementById('tsResultsTab');
+const resultsStatusContainer = document.getElementById('resultsStatusContainer');
 
 // Import our floorplan processor library
 import { 
@@ -69,6 +71,7 @@ function handleFileChange(e) {
         
         // Clear previous results but keep any existing results
         updateStatus('');
+        updateResultsStatus('');
     }
 }
 
@@ -80,6 +83,7 @@ async function handleScanClick() {
 
     try {
         updateStatus('Processing with Python API...');
+        updateResultsStatus('Processing with Python API...');
 
         // Prepare form data
         const formData = new FormData();
@@ -101,6 +105,7 @@ async function handleScanClick() {
 
         const data = await response.json();
         updateStatus('Python API processing complete!');
+        updateResultsStatus('Python API processing complete!');
 
         if (data.clusteredImagePath) {
             annotatedURL = `${baseUrl}/${data.clusteredImagePath}`;
@@ -109,11 +114,12 @@ async function handleScanClick() {
             // Switch to API results tab
             switchTab('api');
         } else {
-            updateStatus('No annotated image path in the response.');
+            updateResultsStatus('No annotated image path in the response.');
         }
     } catch (err) {
         console.error(err);
         updateStatus(`Error: ${err.message}`);
+        updateResultsStatus(`Error: ${err.message}`);
     }
 }
 
@@ -125,6 +131,7 @@ async function handleScanTsClick() {
 
     try {
         updateStatus('Processing using TypeScript implementation...');
+        updateResultsStatus('Processing using TypeScript implementation...');
         
         // Get threshold value from input
         const threshVal = parseInt(thresholdInput.value, 10) || 100;
@@ -134,20 +141,20 @@ async function handleScanTsClick() {
         const img = await createImageFromFile(selectedFile);
         
         // 1. Skeletonize the image
-        updateStatus('Skeletonizing image...');
+        updateResultsStatus('Skeletonizing image...');
         const processedImage = await skeletonizeImage(img, threshVal);
         
         // 2. Detect corners
-        updateStatus('Detecting corners...');
+        updateResultsStatus('Detecting corners...');
         const corners = detectCorners(processedImage.skeleton);
         console.log(`Detected ${corners.length} corners.`);
         
         // 3. Cluster corners
-        updateStatus('Clustering corners...');
+        updateResultsStatus('Clustering corners...');
         const clusteredPoints = clusterPoints(corners, clusters);
         
         // 4. Convert to BGR for visualization (similar to OpenCV)
-        updateStatus('Rendering results...');
+        updateResultsStatus('Rendering results...');
         
         // Create a colored version of the skeleton for visualization
         const visualImageData = convertToRGB(processedImage.skeleton);
@@ -169,6 +176,7 @@ async function handleScanTsClick() {
         tsImageProcessed = true;
         
         updateStatus('TypeScript processing complete!');
+        updateResultsStatus('TypeScript processing complete!');
         
         // Update result container with some stats
         showTSResults(corners, clusteredPoints, lines);
@@ -179,6 +187,7 @@ async function handleScanTsClick() {
     } catch (err) {
         console.error(err);
         updateStatus(`Error: ${err.message}`);
+        updateResultsStatus(`Error: ${err.message}`);
     }
 }
 
@@ -200,6 +209,7 @@ function handleClear() {
     apiResultContainer.innerHTML = '';
     tsResultContainer.innerHTML = '';
     updateStatus('');
+    updateResultsStatus('');
     
     // Clear canvas
     clearCanvas();
@@ -207,6 +217,12 @@ function handleClear() {
 
 function updateStatus(message) {
     statusContainer.innerHTML = `<p>Status: ${message}</p>`;
+}
+
+function updateResultsStatus(message) {
+    if (resultsStatusContainer) {
+        resultsStatusContainer.innerHTML = `<p>${message}</p>`;
+    }
 }
 
 function showAPIResults(imageUrl, data) {
@@ -237,7 +253,6 @@ function showTSResults(corners, clusteredPoints, lines) {
                     <li>Found ${lines.length} lines</li>
                 </ul>
             </p>
-            <p>Results are displayed in the canvas on the right →</p>
         </div>
     `;
 }
@@ -247,10 +262,17 @@ function switchTab(tabName) {
         // Show API results
         apiResultsTab.classList.add('active');
         tsResultsTab.classList.remove('active');
+        
+        // Show API content
         apiResultContainer.style.display = 'block';
         tsResultContainer.style.display = 'none';
         
-        // If we have an API result image, clear the canvas
+        // Hide the canvas for API results, show the image instead
+        if (canvasContainer) {
+            canvasContainer.style.display = 'none';
+        }
+        
+        // If we have an API result image, we don't need the canvas
         if (annotatedURL) {
             clearCanvas();
         }
@@ -258,8 +280,15 @@ function switchTab(tabName) {
         // Show TS results
         apiResultsTab.classList.remove('active');
         tsResultsTab.classList.add('active');
+        
+        // Show TS content
         apiResultContainer.style.display = 'none';
         tsResultContainer.style.display = 'block';
+        
+        // Show the canvas for TS results
+        if (canvasContainer) {
+            canvasContainer.style.display = 'flex';
+        }
         
         // If we have processed the image with TS and have lost the canvas, recreate it
         if (tsImageProcessed && canvas.width === 0) {

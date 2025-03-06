@@ -6,24 +6,25 @@
   <style>
     body { margin: 0; font-family: Arial, sans-serif; }
     .container { display: flex; width: 100vw; height: 100vh; }
-    .left-column { width: 50%; display: flex; flex-direction: column; }
-    .right-column { width: 50%; display: flex; flex-direction: column; }
+    .left-column { width: 40%; display: flex; flex-direction: column; }
+    .right-column { width: 60%; display: flex; flex-direction: column; }
     .upload-section, .controls-section { 
       flex: 0 0 auto; 
       border: 1px solid gray; 
       padding: 1rem; 
       overflow-y: auto; 
     }
-    .results-section {
+    .results-display {
       flex: 1;
-      border: 1px solid gray;
-      padding: 1rem;
-      overflow-y: auto;
       display: flex;
       flex-direction: column;
     }
     .result-container {
-      margin-bottom: 20px;
+      margin-top: 10px;
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      border: 1px solid #ccc;
     }
     canvas {
       width: 100%;
@@ -35,10 +36,14 @@
       flex: 1;
       position: relative;
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
     .tab-container {
       display: flex;
       border-bottom: 1px solid #ccc;
+      background-color: #f8f8f8;
+      padding: 0.5rem 0 0 0.5rem;
     }
     .tab {
       padding: 8px 16px;
@@ -52,6 +57,11 @@
       background-color: #fff;
       border-bottom: 1px solid white;
       margin-bottom: -1px;
+    }
+    .status-area {
+      padding: 0.5rem;
+      border-top: 1px solid #ccc;
+      background-color: #f8f8f8;
     }
   </style>
 </head>
@@ -84,23 +94,30 @@
         <button id="clearButton">Clear</button>
         <div id="statusContainer"></div>
       </div>
+    </div>
 
-      <!-- Results Section -->
-      <div class="results-section">
-        <div class="tab-container">
-          <div class="tab active" id="apiResultsTab">Python API Results</div>
-          <div class="tab" id="tsResultsTab">TypeScript Results</div>
+    <!-- Right Column: Results Display -->
+    <div class="right-column">
+      <!-- Tab Navigation -->
+      <div class="tab-container">
+        <div class="tab active" id="apiResultsTab">Python API Results</div>
+        <div class="tab" id="tsResultsTab">TypeScript Results</div>
+      </div>
+      
+      <div class="results-display">
+        <!-- Canvas and Results Area -->
+        <div class="canvas-container" id="canvasContainer">
+          <canvas id="floorplanCanvas"></canvas>
         </div>
         
+        <!-- Result Containers -->
         <div id="apiResultContainer" class="result-container"></div>
         <div id="tsResultContainer" class="result-container" style="display: none;"></div>
       </div>
-    </div>
-
-    <!-- Right Column: Canvas -->
-    <div class="right-column">
-      <div class="canvas-container">
-        <canvas id="floorplanCanvas"></canvas>
+      
+      <!-- Status Area at the bottom of the right column -->
+      <div class="status-area">
+        <div id="resultsStatusContainer"></div>
       </div>
     </div>
   </div>
