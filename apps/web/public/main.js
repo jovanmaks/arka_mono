@@ -131,19 +131,20 @@ async function handleScanTsClick() {
 
     try {
         updateStatus('Processing using TypeScript implementation...');
-        updateResultsStatus('Processing using TypeScript implementation...');
+        updateResultsStatus('Processing using TypeScript implementation - Skeletonizing only...');
         
         // Get threshold value from input
         const threshVal = parseInt(thresholdInput.value, 10) || 100;
-        const clusters = parseInt(clustersInput.value, 10) || 20;
         
-        // Process the image using our TS library
+        // Process the image using our TS library - ONLY SKELETONIZE
         const img = await createImageFromFile(selectedFile);
         
         // 1. Skeletonize the image
         updateResultsStatus('Skeletonizing image...');
         const processedImage = await skeletonizeImage(img, threshVal);
         
+        // Comment out the rest of the processing steps to only show skeletonized image
+        /*
         // 2. Detect corners
         updateResultsStatus('Detecting corners...');
         const corners = detectCorners(processedImage.skeleton);
@@ -170,18 +171,19 @@ async function handleScanTsClick() {
             10   // maxLineGap
         );
         drawLines(visualImageData, lines);
+        */
         
-        // Render to canvas
-        renderImageDataToCanvas(visualImageData, canvas);
+        // Render only the skeletonized image to canvas
+        renderImageDataToCanvas(processedImage.skeleton, canvas);
         tsImageProcessed = true;
         
-        updateStatus('TypeScript processing complete!');
-        updateResultsStatus('TypeScript processing complete!');
+        updateStatus('TypeScript processing complete - Skeletonize Only!');
+        updateResultsStatus('TypeScript processing complete - Showing only the skeletonized image');
         
-        // Update result container with some stats
-        showTSResults(corners, clusteredPoints, lines);
+        // Show minimal result details
+        showTSResults([/* no corners */], [/* no clustered points */], [/* no lines */]);
         
-        // Switch to TS results tab
+        // Switch to TS results tab to show the canvas
         switchTab('ts');
         
     } catch (err) {
