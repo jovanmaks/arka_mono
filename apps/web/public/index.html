@@ -63,6 +63,23 @@
       border-top: 1px solid #ccc;
       background-color: #f8f8f8;
     }
+    .file-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .scan-buttons {
+      margin-top: 10px;
+      margin-bottom: 20px;
+    }
+    .input-fields {
+      margin-top: 15px;
+    }
+    .input-fields label {
+      display: block;
+      margin-bottom: 10px;
+    }
   </style>
 </head>
 <body>
@@ -72,26 +89,32 @@
       <!-- Upload Section -->
       <div class="upload-section">
         <h2>Floorplan Uploader</h2>
-        <input type="file" accept="image/*" id="fileInput" />
+        
+        <!-- File input and clear button in one row -->
+        <div class="file-controls">
+          <input type="file" accept="image/*" id="fileInput" />
+          <button id="clearButton">Clear</button>
+        </div>
+        
+        <!-- Scan buttons under the file input -->
+        <div class="scan-buttons">
+          <button id="scanButton" disabled>Scan Floorplan (Python)</button>
+          <button id="scanTsButton" disabled>Scan Floorplan (TypeScript)</button>
+        </div>
+        
+        <!-- Input fields below the buttons -->
+        <div class="input-fields">
+          <label>
+            Threshold:
+            <input type="number" id="thresholdInput" value="100" style="width: 80px" />
+          </label>
+          <label>
+            Clusters:
+            <input type="number" id="clustersInput" value="20" style="width: 80px" />
+          </label>
+        </div>
+        
         <div id="previewContainer"></div>
-      </div>
-
-      <!-- Controls Section -->
-      <div class="controls-section">
-        <h2>Scan Settings</h2>
-        <label>
-          Threshold:
-          <input type="number" id="thresholdInput" value="100" style="width: 80px" />
-        </label>
-        <br><br>
-        <label>
-          Clusters:
-          <input type="number" id="clustersInput" value="20" style="width: 80px" />
-        </label>
-        <br><br>
-        <button id="scanButton" disabled>Scan Floorplan (Python)</button>
-        <button id="scanTsButton" disabled>Scan Floorplan (TypeScript)</button>
-        <button id="clearButton">Clear</button>
         <div id="statusContainer"></div>
       </div>
     </div>
