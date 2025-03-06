@@ -14,6 +14,7 @@ const statusContainer = document.getElementById('statusContainer');
 const resultContainer = document.getElementById('resultContainer');
 const canvas = document.getElementById('floorplanCanvas');
 const ctx = canvas.getContext('2d');
+const scanTsButton = document.getElementById('scanTsButton');
 
 // Wait for DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -21,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     fileInput.addEventListener('change', handleFileChange);
     scanButton.addEventListener('click', handleScanClick);
     clearButton.addEventListener('click', handleClear);
+    scanTsButton.addEventListener('click', drawSimpleRectangle);
 });
 
 function handleFileChange(e) {
@@ -80,7 +82,7 @@ async function handleScanClick() {
         if (data.clusteredImagePath) {
             annotatedURL = `${baseUrl}/${data.clusteredImagePath}`;
             showResults(annotatedURL);
-            drawOnCanvas(annotatedURL);
+            clearCanvas(); // Clear any previous canvas content
         } else {
             updateStatus('No annotated image path in the response.');
         }
@@ -148,4 +150,22 @@ function drawOnCanvas(imageUrl) {
         ctx.strokeRect(50, 50, 200, 150);
     };
     img.src = imageUrl;
+}
+
+function drawSimpleRectangle() {
+    if (!ctx) return;
+    
+    // Clear previous content
+    clearCanvas();
+    
+    // Set canvas size if not already set
+    if (canvas.width === 0) {
+        canvas.width = 800;  // Default width
+        canvas.height = 600; // Default height
+    }
+    
+    // Draw a simple rectangle
+    ctx.strokeStyle = '#FF0000';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(50, 50, 200, 150);
 }
