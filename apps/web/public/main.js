@@ -2,6 +2,7 @@
 let selectedFile = null;
 let previewURL = null;
 let annotatedURL = null;
+let tsImageProcessed = false;
 
 // DOM Elements
 const fileInput = document.getElementById('fileInput');
@@ -11,10 +12,24 @@ const clustersInput = document.getElementById('clustersInput');
 const scanButton = document.getElementById('scanButton');
 const clearButton = document.getElementById('clearButton');
 const statusContainer = document.getElementById('statusContainer');
-const resultContainer = document.getElementById('resultContainer');
+const apiResultContainer = document.getElementById('apiResultContainer');
+const tsResultContainer = document.getElementById('tsResultContainer');
 const canvas = document.getElementById('floorplanCanvas');
 const ctx = canvas.getContext('2d');
 const scanTsButton = document.getElementById('scanTsButton');
+const apiResultsTab = document.getElementById('apiResultsTab');
+const tsResultsTab = document.getElementById('tsResultsTab');
+
+// Import our floorplan processor library
+import { 
+  skeletonizeImage, 
+  renderImageDataToCanvas,
+  detectCorners,
+  clusterPoints,
+  drawClusteredPoints,
+  detectStraightWallsHough,
+  drawLines
+} from "/floorplan-processor/mod.js";
 
 // Wait for DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -22,7 +37,11 @@ document.addEventListener('DOMContentLoaded', () => {
     fileInput.addEventListener('change', handleFileChange);
     scanButton.addEventListener('click', handleScanClick);
     clearButton.addEventListener('click', handleClear);
-    scanTsButton.addEventListener('click', drawSimpleRectangle);
+    scanTsButton.addEventListener('click', handleScanTsClick);
+    
+    // Tab handlers
+    apiResultsTab.addEventListener('click', () => switchTab('api'));
+    tsResultsTab.addEventListener('click', () => switchTab('ts'));
 });
 
 function handleFileChange(e) {
@@ -30,7 +49,10 @@ function handleFileChange(e) {
     if (file) {
         selectedFile = file;
         previewURL = URL.createObjectURL(file);
+        
+        // Enable both scan buttons
         scanButton.disabled = false;
+        scanTsButton.disabled = false;
 
         // Create and show preview image
         const previewImg = new Image();
@@ -42,9 +64,10 @@ function handleFileChange(e) {
         previewContainer.innerHTML = '<p>Uploaded Image Preview:</p>';
         previewContainer.appendChild(previewImg);
 
-        // Clear previous results
-        annotatedURL = null;
-        resultContainer.innerHTML = '';
+        // Reset state
+        tsImageProcessed = false;
+        
+        // Clear previous results but keep any existing results
         updateStatus('');
     }
 }
@@ -56,7 +79,7 @@ async function handleScanClick() {
     }
 
     try {
-        updateStatus('Processing...');
+        updateStatus('Processing with Python API...');
 
         // Prepare form data
         const formData = new FormData();
@@ -77,15 +100,82 @@ async function handleScanClick() {
         }
 
         const data = await response.json();
-        updateStatus('Processing complete!');
+        updateStatus('Python API processing complete!');
 
         if (data.clusteredImagePath) {
             annotatedURL = `${baseUrl}/${data.clusteredImagePath}`;
-            showResults(annotatedURL);
-            clearCanvas(); // Clear any previous canvas content
+            showAPIResults(annotatedURL, data);
+            
+            // Switch to API results tab
+            switchTab('api');
         } else {
             updateStatus('No annotated image path in the response.');
         }
+    } catch (err) {
+        console.error(err);
+        updateStatus(`Error: ${err.message}`);
+    }
+}
+
+async function handleScanTsClick() {
+    if (!selectedFile) {
+        updateStatus('No file selected!');
+        return;
+    }
+
+    try {
+        updateStatus('Processing using TypeScript implementation...');
+        
+        // Get threshold value from input
+        const threshVal = parseInt(thresholdInput.value, 10) || 100;
+        const clusters = parseInt(clustersInput.value, 10) || 20;
+        
+        // Process the image using our TS library
+        const img = await createImageFromFile(selectedFile);
+        
+        // 1. Skeletonize the image
+        updateStatus('Skeletonizing image...');
+        const processedImage = await skeletonizeImage(img, threshVal);
+        
+        // 2. Detect corners
+        updateStatus('Detecting corners...');
+        const corners = detectCorners(processedImage.skeleton);
+        console.log(`Detected ${corners.length} corners.`);
+        
+        // 3. Cluster corners
+        updateStatus('Clustering corners...');
+        const clusteredPoints = clusterPoints(corners, clusters);
+        
+        // 4. Convert to BGR for visualization (similar to OpenCV)
+        updateStatus('Rendering results...');
+        
+        // Create a colored version of the skeleton for visualization
+        const visualImageData = convertToRGB(processedImage.skeleton);
+        
+        // 5. Draw the clustered points
+        drawClusteredPoints(visualImageData, clusteredPoints);
+        
+        // 6. Detect and draw lines
+        const lines = detectStraightWallsHough(
+            processedImage.skeleton, 
+            25,  // threshold (lower than Python to account for simpler implementation)
+            30,  // minLineLength
+            10   // maxLineGap
+        );
+        drawLines(visualImageData, lines);
+        
+        // Render to canvas
+        renderImageDataToCanvas(visualImageData, canvas);
+        tsImageProcessed = true;
+        
+        updateStatus('TypeScript processing complete!');
+        
+        // Update result container with some stats
+        showTSResults(corners, clusteredPoints, lines);
+        
+        // Switch to TS results tab
+        switchTab('ts');
+        
     } catch (err) {
         console.error(err);
         updateStatus(`Error: ${err.message}`);
@@ -96,16 +186,19 @@ function handleClear() {
     selectedFile = null;
     previewURL = null;
     annotatedURL = null;
+    tsImageProcessed = false;
     
     // Reset form
     fileInput.value = '';
-    thresholdInput.value = '150';
-    clustersInput.value = '150';
+    thresholdInput.value = '100';
+    clustersInput.value = '20';
     scanButton.disabled = true;
+    scanTsButton.disabled = true;
     
     // Clear displays
     previewContainer.innerHTML = '';
-    resultContainer.innerHTML = '';
+    apiResultContainer.innerHTML = '';
+    tsResultContainer.innerHTML = '';
     updateStatus('');
     
     // Clear canvas
@@ -116,56 +209,95 @@ function updateStatus(message) {
     statusContainer.innerHTML = `<p>Status: ${message}</p>`;
 }
 
-function showResults(imageUrl) {
-    resultContainer.innerHTML = `
+function showAPIResults(imageUrl, data) {
+    apiResultContainer.innerHTML = `
         <div>
-            <p>Annotated Skeleton:</p>
-            <img src="${imageUrl}" alt="Annotated Skeleton" 
+            <h3>Python API Results:</h3>
+            <p>
+                <ul>
+                    <li>Detected ${data.corners?.length || 0} corners</li>
+                    <li>Clustered into ${data.clusteredPoints?.length || 0} points</li>
+                    <li>Found ${data.lines?.length || 0} lines</li>
+                </ul>
+            </p>
+            <img src="${imageUrl}" alt="Python Processed Floorplan" 
                  style="max-width: 100%; height: auto; border: 1px solid #ccc" />
         </div>
     `;
 }
 
+function showTSResults(corners, clusteredPoints, lines) {
+    tsResultContainer.innerHTML = `
+        <div>
+            <h3>TypeScript Implementation Results:</h3>
+            <p>
+                <ul>
+                    <li>Detected ${corners.length} corners</li>
+                    <li>Clustered into ${clusteredPoints.length} points</li>
+                    <li>Found ${lines.length} lines</li>
+                </ul>
+            </p>
+            <p>Results are displayed in the canvas on the right →</p>
+        </div>
+    `;
+}
+
+function switchTab(tabName) {
+    if (tabName === 'api') {
+        // Show API results
+        apiResultsTab.classList.add('active');
+        tsResultsTab.classList.remove('active');
+        apiResultContainer.style.display = 'block';
+        tsResultContainer.style.display = 'none';
+        
+        // If we have an API result image, clear the canvas
+        if (annotatedURL) {
+            clearCanvas();
+        }
+    } else {
+        // Show TS results
+        apiResultsTab.classList.remove('active');
+        tsResultsTab.classList.add('active');
+        apiResultContainer.style.display = 'none';
+        tsResultContainer.style.display = 'block';
+        
+        // If we have processed the image with TS and have lost the canvas, recreate it
+        if (tsImageProcessed && canvas.width === 0) {
+            // Re-process the image - this is a simplified version that would need to be expanded
+            handleScanTsClick();
+        }
+    }
+}
+
 function clearCanvas() {
     if (ctx) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        canvas.width = 0;
+        canvas.height = 0;
     }
 }
 
-function drawOnCanvas(imageUrl) {
-    if (!ctx) return;
-
-    const img = new Image();
-    img.onload = () => {
-        // Set canvas size to match image
-        canvas.width = img.width;
-        canvas.height = img.height;
-        
-        // Draw image
-        ctx.drawImage(img, 0, 0);
-
-        // Example: Draw a simple rectangle (you can customize this)
-        ctx.strokeStyle = '#FF0000';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(50, 50, 200, 150);
-    };
-    img.src = imageUrl;
+// Helper function to create an HTMLImageElement from a File
+function createImageFromFile(file) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = URL.createObjectURL(file);
+    });
 }
 
-function drawSimpleRectangle() {
-    if (!ctx) return;
+// Helper function to convert a grayscale ImageData to RGB
+function convertToRGB(imageData) {
+    const { width, height, data } = imageData;
+    const rgbData = new ImageData(width, height);
     
-    // Clear previous content
-    clearCanvas();
-    
-    // Set canvas size if not already set
-    if (canvas.width === 0) {
-        canvas.width = 800;  // Default width
-        canvas.height = 600; // Default height
+    for (let i = 0; i < data.length; i += 4) {
+        rgbData.data[i] = data[i];       // R
+        rgbData.data[i + 1] = data[i];   // G
+        rgbData.data[i + 2] = data[i];   // B
+        rgbData.data[i + 3] = data[i+3]; // A
     }
     
-    // Draw a simple rectangle
-    ctx.strokeStyle = '#FF0000';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(50, 50, 200, 150);
+    return rgbData;
 }
