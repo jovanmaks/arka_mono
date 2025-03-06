@@ -164,11 +164,7 @@
     ],
     "packageJson": {
       "dependencies": [
-        "npm:@types/react-dom@^19.0.2",
-        "npm:@types/react@^19.0.2",
-        "npm:esbuild@~0.19.12",
-        "npm:react-dom@^18.3.1",
-        "npm:react@^18.3.1"
+        "npm:esbuild@~0.19.12"
       ]
     },
     "members": {
