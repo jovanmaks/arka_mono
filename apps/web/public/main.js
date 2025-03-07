@@ -170,9 +170,20 @@ const floorplanStrategies = {
       if (doCorners && processedImage) {
         updateResultsStatus('Detecting corners...');
         corners = detectCorners(processedImage.skeleton);
+
+        // Draw the corners on the canvas in yellow (similar to Python API)
+        if (corners.length > 0) {
+          ctx.fillStyle = '#ffff00'; // Yellow color
+          corners.forEach(corner => {
+            ctx.beginPath();
+            ctx.arc(corner.x, corner.y, 3, 0, 2 * Math.PI);
+            ctx.fill();
+          });
+        }
+
         updateResultsStatus(`Found ${corners.length} corners.`);
       }
-      
+
       // 3. Cluster points if option is checked
       if (doCluster && corners.length > 0) {
         updateResultsStatus('Clustering points...');
