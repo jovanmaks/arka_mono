@@ -95,6 +95,20 @@
       gap: 5px;
       margin-left: 10px;
     }
+    .slider-container {
+      margin-bottom: 15px;
+    }
+    .slider-container label {
+      display: block;
+      margin-bottom: 5px;
+    }
+    input[type="range"] {
+      width: 100%;
+      margin: 8px 0;
+    }
+    #thresholdValue, #clustersValue {
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -118,6 +132,18 @@
           <button id="scanTs2Button" disabled>Scan (O1)</button>
         </div>
         
+        <!-- Input fields with sliders -->
+        <div class="input-fields">
+          <div class="slider-container">
+            <label for="thresholdInput">Threshold: <span id="thresholdValue">100</span></label>
+            <input type="range" id="thresholdInput" min="0" max="255" value="100" style="width: 100%" />
+          </div>
+          <div class="slider-container">
+            <label for="clustersInput">Clusters: <span id="clustersValue">20</span></label>
+            <input type="range" id="clustersInput" min="5" max="50" value="20" style="width: 100%" />
+          </div>
+        </div>
+
         <!-- Processing options (checkboxes) for TypeScript implementation -->
         <div class="process-options">
           <h4>Sonnet Processing Options:</h4>
@@ -154,18 +180,6 @@
               <input type="checkbox" id="o1LinesCheck" /> Detect Lines
             </label>
           </div>
-        </div>
-        
-        <!-- Input fields below the buttons -->
-        <div class="input-fields">
-          <label>
-            Threshold:
-            <input type="number" id="thresholdInput" value="100" style="width: 80px" />
-          </label>
-          <label>
-            Clusters:
-            <input type="number" id="clustersInput" value="20" style="width: 80px" />
-          </label>
         </div>
         
         <div id="previewContainer"></div>

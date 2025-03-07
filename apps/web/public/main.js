@@ -417,6 +417,14 @@ document.addEventListener('DOMContentLoaded', () => {
     scanTsButton.addEventListener('click', () => handleScanClick(FloorplanProcessingStrategy.TS_PROCESSOR));
     scanTs2Button.addEventListener('click', () => handleScanClick(FloorplanProcessingStrategy.O1_PROCESSOR));
     
+    // Add slider value update handlers
+    thresholdInput.addEventListener('input', () => {
+        document.getElementById('thresholdValue').textContent = thresholdInput.value;
+    });
+    clustersInput.addEventListener('input', () => {
+        document.getElementById('clustersValue').textContent = clustersInput.value;
+    });
+    
     // Checkbox dependency handling for Sonnet
     cornersCheck.addEventListener('change', handleSonnetCheckboxDependencies);
     clusterCheck.addEventListener('change', handleSonnetCheckboxDependencies);
