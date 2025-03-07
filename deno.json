@@ -1,5 +1,5 @@
 {
-  "workspace": ["./packages/lib", "./apps/api", "./apps/web", "./packages/floorplan-processor"],
+  "workspace": ["./packages/lib", "./apps/api", "./apps/web", "./packages/floorplan-sonnet"],
   "importMap": "./import_map.json",
   "tasks": {
     "format": "deno fmt",
@@ -10,7 +10,7 @@
     "api:serve": "deno run --allow-net --allow-read --import-map=./import_map.json --watch apps/api/src/main.ts",
     "app:serve": "deno task api:scanner & deno task web:serve",
     "lib:test": "cd packages/lib && deno test --allow-all",
-    "floorplan:build": "cd packages/floorplan-processor && deno run --allow-read --allow-write --allow-net --allow-env build.ts",
+    "floorplan:build": "cd packages/floorplan-sonnet && deno run --allow-read --allow-write --allow-net --allow-env build.ts",
     "web:build": "deno task floorplan:build"
   }
 }

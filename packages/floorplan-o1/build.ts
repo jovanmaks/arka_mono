@@ -1,11 +1,11 @@
 /**
- * Build script for the floorplan-processor-o1 library
+ * Build script for the floorplan-o1 library
  * 
  * This script bundles the library for browser use.
  */
 
 // Define paths
-const outputDir = "../../apps/web/public/floorplan-processor-o1";
+const outputDir = "../../apps/web/public/floorplan-o1";
 
 // Ensure output directory exists
 try {
@@ -26,7 +26,7 @@ try {
 
   // Write the bundled code to the output directory
   await Deno.writeTextFile(`${outputDir}/mod.js`, files["deno:///bundle.js"]);
-  console.log(`✅ Built floorplan-processor-o1 library to ${outputDir}/mod.js`);
+  console.log(`✅ Built floorplan-o1 library to ${outputDir}/mod.js`);
 } catch (err) {
   console.error(`Error bundling: ${err.message}`);
 }

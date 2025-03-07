@@ -1,13 +1,13 @@
-// Build script for floorplan-processor
+// Build script for floorplan-sonnet
 import * as esbuild from "npm:esbuild";
 import { join, dirname } from "https://deno.land/std/path/mod.ts";
 import { exists } from "https://deno.land/std/fs/mod.ts";
 
-console.log("Starting floorplan-processor build...");
+console.log("Starting floorplan-sonnet build...");
 
 // Get the output directory path
 const scriptDir = dirname(new URL(import.meta.url).pathname);
-const outDir = join(scriptDir, "../../apps/web/public/floorplan-processor");
+const outDir = join(scriptDir, "../../apps/web/public/floorplan-sonnet");
 
 console.log(`Script directory: ${scriptDir}`);
 console.log(`Output directory: ${outDir}`);
@@ -32,12 +32,12 @@ try {
     sourcemap: true,
     minify: true,
     banner: {
-      js: "// Floorplan Processor Library - Built with esbuild",
+      js: "// Floorplan Sonnet Library - Built with esbuild",
     },
   });
 
   console.log("esbuild result:", result);
-  console.log(`✅ Built floorplan-processor to ${outDir}`);
+  console.log(`✅ Built floorplan-sonnet to ${outDir}`);
   
   // Verify files were created
   const files = [];

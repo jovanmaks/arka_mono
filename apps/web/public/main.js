@@ -36,13 +36,13 @@ import {
   drawClusteredPoints,
   detectStraightWallsHough,
   drawLines
-} from "/floorplan-processor/mod.js";
+} from "/floorplan-sonnet/mod.js";
 
 // Import the O(1) floorplan processor module
 import { 
   skeletonize2Image,
   renderImageDataToCanvas as renderImageDataToCanvas2
-} from "/floorplan-processor-o1/mod.js";
+} from "/floorplan-o1/mod.js";
 
 // Define Strategy Pattern for floorplan processing
 const FloorplanProcessingStrategy = {
