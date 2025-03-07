@@ -27,6 +27,12 @@ const ts2ResultsTab = document.getElementById('ts2ResultsTab');
 const ts2ResultContainer = document.getElementById('ts2ResultContainer');
 const scanTs2Button = document.getElementById('scanTs2Button');
 
+// Get references to checkbox elements
+const skeletonizeCheck = document.getElementById('skeletonizeCheck');
+const cornersCheck = document.getElementById('cornersCheck');
+const clusterCheck = document.getElementById('clusterCheck');
+const linesCheck = document.getElementById('linesCheck');
+
 // Import our floorplan processor library
 import { 
   skeletonizeImage,
@@ -104,33 +110,99 @@ const floorplanStrategies = {
     name: 'TypeScript Processor',
     process: async function(file, options) {
       updateStatus('Processing using TypeScript implementation...');
-      updateResultsStatus('Processing using TypeScript implementation - Skeletonizing only...');
+      updateResultsStatus('Processing with TypeScript implementation...');
       
-      // Process the image using our TS library - ONLY SKELETONIZE
+      // Get processing options from checkboxes
+      const doSkeletonize = skeletonizeCheck.checked;
+      const doCorners = cornersCheck.checked;
+      const doCluster = clusterCheck.checked;
+      const doLines = linesCheck.checked;
+      
+      // Process the image using our TS library with selected options
       const img = await createImageFromFile(file);
       
-      // 1. Skeletonize the image
-      updateResultsStatus('Skeletonizing image...');
-      const processedImage = await skeletonizeImage(img, options.threshVal);
+      // Initialize arrays to store results
+      let corners = [];
+      let clusteredPoints = [];
+      let lines = [];
+      let processedImage = null;
       
-      // Render only the skeletonized image to canvas
-      renderImageDataToCanvas(processedImage.skeleton, canvas);
+      // Clear the canvas
+      clearCanvas();
+      canvas.width = img.width;
+      canvas.height = img.height;
+      
+      // 1. Skeletonize the image (always needed as base)
+      if (doSkeletonize) {
+        updateResultsStatus('Skeletonizing image...');
+        processedImage = await skeletonizeImage(img, options.threshVal);
+        
+        // Copy skeleton to the canvas
+        renderImageDataToCanvas(processedImage.skeleton, canvas);
+      } else {
+        // If not skeletonizing, just draw the original image
+        ctx.drawImage(img, 0, 0);
+        
+        // Create a dummy processedImage object with original image data
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        processedImage = {
+          skeleton: imageData,
+          originalWidth: img.width,
+          originalHeight: img.height,
+          debugInfo: { thresholdValue: options.threshVal }
+        };
+      }
+      
+      // 2. Detect corners if option is checked
+      if (doCorners && processedImage) {
+        updateResultsStatus('Detecting corners...');
+        corners = detectCorners(processedImage.skeleton);
+        updateResultsStatus(`Found ${corners.length} corners.`);
+      }
+      
+      // 3. Cluster points if option is checked
+      if (doCluster && corners.length > 0) {
+        updateResultsStatus('Clustering points...');
+        clusteredPoints = clusterPoints(corners, options.clusters);
+        
+        // Draw the clustered points on the canvas
+        drawClusteredPoints(processedImage.skeleton, clusteredPoints, true);
+        renderImageDataToCanvas(processedImage.skeleton, canvas);
+        updateResultsStatus(`Clustered into ${clusteredPoints.length} points.`);
+      }
+      
+      // 4. Detect lines if option is checked
+      if (doLines && processedImage) {
+        updateResultsStatus('Detecting lines...');
+        lines = detectStraightWallsHough(
+          processedImage.skeleton, 
+          30,  // threshold
+          50,  // minLineLength
+          10   // maxLineGap
+        );
+        
+        // Draw the lines on the canvas
+        drawLines(processedImage.skeleton, lines);
+        renderImageDataToCanvas(processedImage.skeleton, canvas);
+        updateResultsStatus(`Detected ${lines.length} lines.`);
+      }
+      
       tsImageProcessed = true;
       
-      updateStatus('TypeScript processing complete - Skeletonize Only!');
-      updateResultsStatus('TypeScript processing complete - Showing only the skeletonized image');
+      updateStatus('TypeScript processing complete!');
+      updateResultsStatus('TypeScript processing complete!');
       
-      // Show minimal result details
-      showTSResults([/* no corners */], [/* no clustered points */], [/* no lines */]);
+      // Show result details
+      showTSResults(corners, clusteredPoints, lines);
       
       // Switch to TS results tab to show the canvas
       switchTab('ts');
       
       return {
         processedImage,
-        corners: [],
-        clusteredPoints: [],
-        lines: []
+        corners,
+        clusteredPoints,
+        lines
       };
     }
   },
@@ -221,11 +293,43 @@ document.addEventListener('DOMContentLoaded', () => {
     scanTsButton.addEventListener('click', () => handleScanClick(FloorplanProcessingStrategy.TS_PROCESSOR));
     scanTs2Button.addEventListener('click', () => handleScanClick(FloorplanProcessingStrategy.O1_PROCESSOR));
     
+    // Checkbox dependency handling
+    cornersCheck.addEventListener('change', handleCheckboxDependencies);
+    clusterCheck.addEventListener('change', handleCheckboxDependencies);
+    linesCheck.addEventListener('change', handleCheckboxDependencies);
+    skeletonizeCheck.addEventListener('change', handleCheckboxDependencies);
+    
     // Tab handlers
     apiResultsTab.addEventListener('click', () => switchTab('api'));
     tsResultsTab.addEventListener('click', () => switchTab('ts'));
     ts2ResultsTab.addEventListener('click', () => switchTab('ts2'));
+    
+    // Initialize checkbox dependencies
+    handleCheckboxDependencies();
 });
+
+// Handle checkbox dependencies
+function handleCheckboxDependencies() {
+  // If skeletonize is unchecked, disable all others
+  if (!skeletonizeCheck.checked) {
+    cornersCheck.disabled = true;
+    clusterCheck.disabled = true;
+    linesCheck.disabled = true;
+  } else {
+    cornersCheck.disabled = false;
+    
+    // If corner detection is unchecked, disable clustering
+    if (!cornersCheck.checked) {
+      clusterCheck.disabled = true;
+      clusterCheck.checked = false;
+    } else {
+      clusterCheck.disabled = false;
+    }
+    
+    // Lines can be detected with or without corners
+    linesCheck.disabled = false;
+  }
+}
 
 // Add the new tab to tab handling
 [apiResultsTab, tsResultsTab, ts2ResultsTab].forEach(tab => {
@@ -312,6 +416,13 @@ function handleClear() {
     scanButton.disabled = true;
     scanTsButton.disabled = true;
     scanTs2Button.disabled = true;
+    
+    // Reset checkboxes to default
+    skeletonizeCheck.checked = true;
+    cornersCheck.checked = false;
+    clusterCheck.checked = false;
+    linesCheck.checked = false;
+    handleCheckboxDependencies();
     
     // Clear displays
     previewContainer.innerHTML = '';

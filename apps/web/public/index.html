@@ -80,6 +80,21 @@
       display: block;
       margin-bottom: 10px;
     }
+    .process-options {
+      margin-top: 15px;
+      border-top: 1px solid #eee;
+      padding-top: 10px;
+    }
+    .process-options h4 {
+      margin-top: 0;
+      margin-bottom: 10px;
+    }
+    .checkbox-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-left: 10px;
+    }
   </style>
 </head>
 <body>
@@ -101,6 +116,25 @@
           <button id="scanButton" disabled>Scan (API)</button>
           <button id="scanTsButton" disabled>Scan (Sonnet)</button>
           <button id="scanTs2Button" disabled>Scan (O1)</button>
+        </div>
+        
+        <!-- Processing options (checkboxes) for TypeScript implementation -->
+        <div class="process-options">
+          <h4>Sonnet Processing Options:</h4>
+          <div class="checkbox-group">
+            <label>
+              <input type="checkbox" id="skeletonizeCheck" checked /> Skeletonize
+            </label>
+            <label>
+              <input type="checkbox" id="cornersCheck" /> Detect Corners
+            </label>
+            <label>
+              <input type="checkbox" id="clusterCheck" /> Cluster Points
+            </label>
+            <label>
+              <input type="checkbox" id="linesCheck" /> Detect Lines
+            </label>
+          </div>
         </div>
         
         <!-- Input fields below the buttons -->
