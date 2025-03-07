@@ -252,10 +252,19 @@ const floorplanStrategies = {
         // 1. Skeletonize the image 
         if (doSkeletonize) {
           updateResultsStatus('Skeletonizing image with O(1) algorithm...');
-          processedImage = await skeletonize2Image(img, options.threshVal);
+          // Explicitly pass the threshold value as an object
+          processedImage = await skeletonize2Image(img, {
+            threshold: options.threshVal,
+            inverse: true,
+            // Add a cache buster to ensure reprocessing when threshold changes
+            cacheBuster: Date.now() 
+          });
           
           // Render the skeletonized image to canvas
           renderImageDataToCanvas2(processedImage.skeleton, o1Canvas);
+          
+          // Log that we're using the user-specified threshold
+          console.log(`Using threshold value: ${options.threshVal} for skeletonization`);
         } else {
           // If not skeletonizing, just draw the original image
           const o1Ctx = o1Canvas.getContext('2d');
@@ -291,9 +300,14 @@ const floorplanStrategies = {
         // 3. Detect lines if option is checked (do this before clustering to get intersections)
         if (doLines && processedImage) {
           updateResultsStatus('Detecting lines with O(1) algorithm...');
+          // Calculate line threshold based on the main threshold, but ensure it's in a sensible range
+          // Different scale for line detection since it uses a different algorithm
+          const lineThreshold = Math.max(5, Math.floor(options.threshVal / 4));
+          console.log(`Using line threshold value: ${lineThreshold} (derived from ${options.threshVal})`);
+          
           lines = detectStraightLines2(
             processedImage.skeleton, 
-            20,  // threshold (lower than Sonnet for better sensitivity)
+            lineThreshold,  // Use scaled threshold from user input
             30,  // minLineLength
             8    // maxLineGap
           );
@@ -318,6 +332,7 @@ const floorplanStrategies = {
           // Combine corners and line intersections for clustering
           const pointsToCluster = [...corners, ...lineIntersections];
           
+          // Use user-specified cluster count
           clusteredPoints = clusterPoints2(pointsToCluster, options.clusters);
           
           // Draw the clustered points on the canvas
