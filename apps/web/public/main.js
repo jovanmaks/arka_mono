@@ -59,6 +59,7 @@ import {
   drawClusteredPoints as drawClusteredPoints2,
   detectStraightLines as detectStraightLines2,
   drawLines as drawLines2,
+  drawCorners as drawCorners2,  // Add import for drawCorners
   findIntersections
 } from "/floorplan-o1/mod.js";
 
@@ -286,7 +287,14 @@ const floorplanStrategies = {
         // 2. Detect corners if option is checked
         if (doCorners && processedImage) {
           updateResultsStatus('Detecting corners with O(1) algorithm...');
-          corners = detectCorners2(processedImage.skeleton);
+          
+          // Use more sensitive parameters for corner detection
+          const cornerOptions = {
+            minNeighbors: 2,       // Lower threshold from default 3
+            minTransitions: 1,     // Lower threshold from default 2
+          };
+          
+          corners = detectCorners2(processedImage.skeleton, cornerOptions);
           
           // Draw the corners on the canvas
           if (corners.length > 0) {
