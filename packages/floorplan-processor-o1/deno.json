@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "lib": ["dom", "deno.ns", "deno.unstable"]
+  },
+  "tasks": {
+    "build": "deno run -A build.ts"
+  }
+}
