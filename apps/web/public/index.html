@@ -98,8 +98,9 @@
         
         <!-- Scan buttons under the file input -->
         <div class="scan-buttons">
-          <button id="scanButton" disabled>Scan Floorplan (Python)</button>
-          <button id="scanTsButton" disabled>Scan Floorplan (TypeScript)</button>
+          <button id="scanButton" disabled>Scan (API)</button>
+          <button id="scanTsButton" disabled>Scan (sonnet)</button>
+          <button id="scanTs2Button" disabled>Scan (o1)</button>
           
           <!-- Model selection dropdown -->
           <div style="margin-top: 10px;">
@@ -133,6 +134,7 @@
       <div class="tab-container">
         <div class="tab active" id="apiResultsTab">Python API Results</div>
         <div class="tab" id="tsResultsTab">TypeScript Results</div>
+        <div class="tab" id="ts2ResultsTab">TypeScript O(1) Results</div>
       </div>
       
       <div class="results-display">
@@ -144,6 +146,7 @@
         <!-- Result Containers -->
         <div id="apiResultContainer" class="result-container"></div>
         <div id="tsResultContainer" class="result-container" style="display: none;"></div>
+        <div id="ts2ResultContainer" class="result-container" style="display: none;"></div>
       </div>
       
       <!-- Status Area at the bottom of the right column -->

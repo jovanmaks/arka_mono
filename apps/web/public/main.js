@@ -23,6 +23,11 @@ const apiResultsTab = document.getElementById('apiResultsTab');
 const tsResultsTab = document.getElementById('tsResultsTab');
 const resultsStatusContainer = document.getElementById('resultsStatusContainer');
 
+// Get references to the new elements
+const ts2ResultsTab = document.getElementById('ts2ResultsTab');
+const ts2ResultContainer = document.getElementById('ts2ResultContainer');
+const scanTs2Button = document.getElementById('scanTs2Button');
+
 // Import our floorplan processor library
 import { 
   skeletonizeImage,
@@ -47,6 +52,26 @@ document.addEventListener('DOMContentLoaded', () => {
     tsResultsTab.addEventListener('click', () => switchTab('ts'));
 });
 
+// Add the new tab to tab handling
+[apiResultsTab, tsResultsTab, ts2ResultsTab].forEach(tab => {
+  tab.addEventListener('click', () => {
+    // Remove active class from all tabs
+    [apiResultsTab, tsResultsTab, ts2ResultsTab].forEach(t => t.classList.remove('active'));
+    // Hide all result containers
+    [apiResultContainer, tsResultContainer, ts2ResultContainer].forEach(c => c.style.display = 'none');
+    
+    // Show the selected tab and container
+    tab.classList.add('active');
+    if (tab === apiResultsTab) {
+      apiResultContainer.style.display = 'block';
+    } else if (tab === tsResultsTab) {
+      tsResultContainer.style.display = 'block';
+    } else if (tab === ts2ResultsTab) {
+      ts2ResultContainer.style.display = 'block';
+    }
+  });
+});
+
 function handleFileChange(e) {
     const file = e.target.files?.[0];
     if (file) {
@@ -56,6 +81,7 @@ function handleFileChange(e) {
         // Enable both scan buttons
         scanButton.disabled = false;
         scanTsButton.disabled = false;
+        scanTs2Button.disabled = false;
 
         // Create and show preview image
         const previewImg = new Image();
@@ -164,6 +190,17 @@ async function handleScanTsClick() {
     }
 }
 
+scanTs2Button.addEventListener('click', async () => {
+  if (!selectedFile) return;
+  
+  clearResults();
+  updateStatus('Processing with TypeScript O(1) strategy...');
+  ts2ResultsTab.click(); // Switch to the O(1) results tab
+  
+  // Placeholder for future implementation
+  updateStatus('TypeScript O(1) strategy not implemented yet');
+});
+
 function handleClear() {
     selectedFile = null;
     previewURL = null;
@@ -176,11 +213,13 @@ function handleClear() {
     clustersInput.value = '20';
     scanButton.disabled = true;
     scanTsButton.disabled = true;
+    scanTs2Button.disabled = true;
     
     // Clear displays
     previewContainer.innerHTML = '';
     apiResultContainer.innerHTML = '';
     tsResultContainer.innerHTML = '';
+    ts2ResultContainer.innerHTML = '';
     updateStatus('');
     updateResultsStatus('');
     
@@ -235,10 +274,12 @@ function switchTab(tabName) {
         // Show API results
         apiResultsTab.classList.add('active');
         tsResultsTab.classList.remove('active');
+        ts2ResultsTab.classList.remove('active');
         
         // Show API content
         apiResultContainer.style.display = 'block';
         tsResultContainer.style.display = 'none';
+        ts2ResultContainer.style.display = 'none';
         
         // Hide the canvas for API results, show the image instead
         if (canvasContainer) {
@@ -249,14 +290,16 @@ function switchTab(tabName) {
         if (annotatedURL) {
             clearCanvas();
         }
-    } else {
+    } else if (tabName === 'ts') {
         // Show TS results
         apiResultsTab.classList.remove('active');
         tsResultsTab.classList.add('active');
+        ts2ResultsTab.classList.remove('active');
         
         // Show TS content
         apiResultContainer.style.display = 'none';
         tsResultContainer.style.display = 'block';
+        ts2ResultContainer.style.display = 'none';
         
         // Show the canvas for TS results
         if (canvasContainer) {
@@ -267,6 +310,21 @@ function switchTab(tabName) {
         if (tsImageProcessed && canvas.width === 0) {
             // Re-process the image - this is a simplified version that would need to be expanded
             handleScanTsClick();
+        }
+    } else if (tabName === 'ts2') {
+        // Show TS O(1) results
+        apiResultsTab.classList.remove('active');
+        tsResultsTab.classList.remove('active');
+        ts2ResultsTab.classList.add('active');
+        
+        // Show TS O(1) content
+        apiResultContainer.style.display = 'none';
+        tsResultContainer.style.display = 'none';
+        ts2ResultContainer.style.display = 'block';
+        
+        // Hide the canvas for TS O(1) results
+        if (canvasContainer) {
+            canvasContainer.style.display = 'none';
         }
     }
 }
