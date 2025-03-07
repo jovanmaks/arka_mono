@@ -3,30 +3,52 @@
  * 
  * This script bundles the library for browser use.
  */
+import * as esbuild from "npm:esbuild";
+import { join, dirname } from "https://deno.land/std/path/mod.ts";
 
-// Define paths
-const outputDir = "../../apps/web/public/floorplan-o1";
+console.log("Starting floorplan-o1 build...");
 
-// Ensure output directory exists
+// Get the output directory path
+const scriptDir = dirname(new URL(import.meta.url).pathname);
+const outDir = join(scriptDir, "../../apps/web/public/floorplan-o1");
+
+console.log(`Script directory: ${scriptDir}`);
+console.log(`Output directory: ${outDir}`);
+
+// Create output directory if it doesn't exist
 try {
-  await Deno.mkdir(outputDir, { recursive: true });
-  console.log(`Ensured output directory: ${outputDir}`);
-} catch (err) {
-  console.error(`Error creating directory: ${err.message}`);
+  await Deno.mkdir(outDir, { recursive: true });
+  console.log(`Created output directory: ${outDir}`);
+} catch (e) {
+  console.log(`Output directory already exists or error: ${e.message}`);
 }
 
 try {
-  // Bundle the library using Deno's built-in bundler
-  const { files } = await Deno.emit("./mod.ts", {
-    bundle: "module",
-    compilerOptions: {
-      lib: ["dom", "esnext"],
+  console.log("Starting esbuild...");
+  const result = await esbuild.build({
+    entryPoints: [join(scriptDir, "mod.ts")],
+    bundle: true,
+    format: "esm",
+    outdir: outDir,
+    platform: "browser",
+    target: ["es2020"],
+    sourcemap: true,
+    minify: true,
+    banner: {
+      js: "// Floorplan O1 Library - Built with esbuild",
     },
   });
 
-  // Write the bundled code to the output directory
-  await Deno.writeTextFile(`${outputDir}/mod.js`, files["deno:///bundle.js"]);
-  console.log(`✅ Built floorplan-o1 library to ${outputDir}/mod.js`);
-} catch (err) {
-  console.error(`Error bundling: ${err.message}`);
+  console.log("esbuild result:", result);
+  console.log(`✅ Built floorplan-o1 to ${outDir}`);
+  
+  // Verify files were created
+  const files = [];
+  for await (const entry of Deno.readDir(outDir)) {
+    files.push(entry.name);
+  }
+  console.log(`Files in output directory: ${files.join(", ")}`);
+  
+} catch (error) {
+  console.error("Build failed:", error);
 }

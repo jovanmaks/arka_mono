@@ -52,7 +52,7 @@ import {
 
 // Import the O(1) floorplan processor module
 import { 
-  skeletonize2Image,
+  skeletonizeImage as skeletonize2Image, // Renamed to match usage
   renderImageDataToCanvas as renderImageDataToCanvas2,
   detectCorners as detectCorners2,
   clusterPoints as clusterPoints2,
