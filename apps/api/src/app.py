@@ -70,7 +70,7 @@ def process_floorplan():
         # Parse optional form params
         thresh_val = int(request.form.get('thresh_val', 100))
         clusters = int(request.form.get('clusters', 20))
-
+        
         # 1. Skeletonize
         try:
             skel = skeletonize_image(filepath, thresh_val=thresh_val)
