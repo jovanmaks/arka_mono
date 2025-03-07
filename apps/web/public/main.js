@@ -9,7 +9,6 @@ const fileInput = document.getElementById('fileInput');
 const previewContainer = document.getElementById('previewContainer');
 const thresholdInput = document.getElementById('thresholdInput');
 const clustersInput = document.getElementById('clustersInput');
-const modelSelect = document.getElementById('modelSelect'); // Keep the reference for future TS implementation
 const scanButton = document.getElementById('scanButton');
 const clearButton = document.getElementById('clearButton');
 const statusContainer = document.getElementById('statusContainer');
