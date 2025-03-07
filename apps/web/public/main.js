@@ -27,11 +27,17 @@ const ts2ResultsTab = document.getElementById('ts2ResultsTab');
 const ts2ResultContainer = document.getElementById('ts2ResultContainer');
 const scanTs2Button = document.getElementById('scanTs2Button');
 
-// Get references to checkbox elements
+// Get references to Sonnet checkbox elements
 const skeletonizeCheck = document.getElementById('skeletonizeCheck');
 const cornersCheck = document.getElementById('cornersCheck');
 const clusterCheck = document.getElementById('clusterCheck');
 const linesCheck = document.getElementById('linesCheck');
+
+// Get references to O1 checkbox elements
+const o1SkeletonizeCheck = document.getElementById('o1SkeletonizeCheck');
+const o1CornersCheck = document.getElementById('o1CornersCheck');
+const o1ClusterCheck = document.getElementById('o1ClusterCheck');
+const o1LinesCheck = document.getElementById('o1LinesCheck');
 
 // Import our floorplan processor library
 import { 
@@ -47,7 +53,13 @@ import {
 // Import the O(1) floorplan processor module
 import { 
   skeletonize2Image,
-  renderImageDataToCanvas as renderImageDataToCanvas2
+  renderImageDataToCanvas as renderImageDataToCanvas2,
+  detectCorners as detectCorners2,
+  clusterPoints as clusterPoints2,
+  drawClusteredPoints as drawClusteredPoints2,
+  detectStraightLines as detectStraightLines2,
+  drawLines as drawLines2,
+  findIntersections
 } from "/floorplan-o1/mod.js";
 
 // Define Strategy Pattern for floorplan processing
@@ -214,28 +226,124 @@ const floorplanStrategies = {
       updateStatus('Processing using O(1) TypeScript implementation...');
       updateResultsStatus('Processing using O(1) TypeScript implementation...');
       
-      // Process the image using the O(1) algorithm
+      // Get processing options from O1 checkboxes
+      const doSkeletonize = o1SkeletonizeCheck.checked;
+      const doCorners = o1CornersCheck.checked;
+      const doCluster = o1ClusterCheck.checked;
+      const doLines = o1LinesCheck.checked;
+      
       try {
         const img = await createImageFromFile(file);
         
-        // Use skeletonize2Image function
-        const processedImage = await skeletonize2Image(img, options.threshVal);
+        // Initialize arrays to store results
+        let corners = [];
+        let clusteredPoints = [];
+        let lines = [];
+        let lineIntersections = [];
+        let processedImage = null;
         
-        // Create a second canvas for the O(1) results
+        // Create a canvas for the O(1) results
         const o1Canvas = document.createElement('canvas');
         o1Canvas.style.maxWidth = '100%';
         o1Canvas.style.height = 'auto';
+        o1Canvas.width = img.width;
+        o1Canvas.height = img.height;
         
-        // Render the skeletonized image to canvas
-        renderImageDataToCanvas2(processedImage.skeleton, o1Canvas);
+        // 1. Skeletonize the image 
+        if (doSkeletonize) {
+          updateResultsStatus('Skeletonizing image with O(1) algorithm...');
+          processedImage = await skeletonize2Image(img, options.threshVal);
+          
+          // Render the skeletonized image to canvas
+          renderImageDataToCanvas2(processedImage.skeleton, o1Canvas);
+        } else {
+          // If not skeletonizing, just draw the original image
+          const o1Ctx = o1Canvas.getContext('2d');
+          o1Ctx.drawImage(img, 0, 0);
+          
+          // Create a dummy processedImage object
+          const imageData = o1Ctx.getImageData(0, 0, o1Canvas.width, o1Canvas.height);
+          processedImage = {
+            skeleton: imageData,
+            originalWidth: img.width,
+            originalHeight: img.height,
+            debugInfo: { 
+              thresholdValue: options.threshVal,
+              algorithm: "Original image (no processing)"
+            }
+          };
+        }
+        
+        // 2. Detect corners if option is checked
+        if (doCorners && processedImage) {
+          updateResultsStatus('Detecting corners with O(1) algorithm...');
+          corners = detectCorners2(processedImage.skeleton);
+          
+          // Draw the corners on the canvas
+          if (corners.length > 0) {
+            const imageWithCorners = drawCorners2(processedImage.skeleton, corners, true);
+            renderImageDataToCanvas2(imageWithCorners, o1Canvas);
+          }
+          
+          updateResultsStatus(`Found ${corners.length} corners with O(1) algorithm.`);
+        }
+        
+        // 3. Detect lines if option is checked (do this before clustering to get intersections)
+        if (doLines && processedImage) {
+          updateResultsStatus('Detecting lines with O(1) algorithm...');
+          lines = detectStraightLines2(
+            processedImage.skeleton, 
+            20,  // threshold (lower than Sonnet for better sensitivity)
+            30,  // minLineLength
+            8    // maxLineGap
+          );
+          
+          // Draw the lines on the canvas
+          if (lines.length > 0) {
+            const imageWithLines = drawLines2(processedImage.skeleton, lines, true);
+            renderImageDataToCanvas2(imageWithLines, o1Canvas);
+          }
+          
+          updateResultsStatus(`Detected ${lines.length} lines with O(1) algorithm.`);
+          
+          // Find intersections of lines
+          lineIntersections = findIntersections(lines);
+          updateResultsStatus(`Found ${lineIntersections.length} line intersections.`);
+        }
+        
+        // 4. Cluster points if option is checked
+        if (doCluster && (corners.length > 0 || lineIntersections.length > 0)) {
+          updateResultsStatus('Clustering points with O(1) algorithm...');
+          
+          // Combine corners and line intersections for clustering
+          const pointsToCluster = [...corners, ...lineIntersections];
+          
+          clusteredPoints = clusterPoints2(pointsToCluster, options.clusters);
+          
+          // Draw the clustered points on the canvas
+          if (clusteredPoints.length > 0) {
+            const imageWithClusters = drawClusteredPoints2(processedImage.skeleton, clusteredPoints, true);
+            renderImageDataToCanvas2(imageWithClusters, o1Canvas);
+          }
+          
+          updateResultsStatus(`Clustered into ${clusteredPoints.length} points with O(1) algorithm.`);
+        }
         
         // Add the canvas to the result container
         ts2ResultContainer.innerHTML = '<h3>O(1) TypeScript Implementation Results:</h3>';
         ts2ResultContainer.appendChild(o1Canvas);
         
-        // Add debug info
-        const debugInfo = document.createElement('div');
-        debugInfo.innerHTML = `<p>
+        // Add debug and results info
+        const resultsInfo = document.createElement('div');
+        resultsInfo.innerHTML = `<p>
+          <ul>
+            <li>Detected ${corners.length} corners</li>
+            <li>Found ${lines.length} line segments</li>
+            <li>Found ${lineIntersections.length} line intersections</li>
+            <li>Clustered into ${clusteredPoints.length} points</li>
+          </ul>
+        </p>
+        <p>
           <strong>Debug Info:</strong>
           <ul>
             <li>Threshold Value: ${options.threshVal}</li>
@@ -243,7 +351,7 @@ const floorplanStrategies = {
             <li>Original Size: ${processedImage.originalWidth} × ${processedImage.originalHeight}</li>
           </ul>
         </p>`;
-        ts2ResultContainer.appendChild(debugInfo);
+        ts2ResultContainer.appendChild(resultsInfo);
         
         updateStatus('O(1) TypeScript processing complete!');
         updateResultsStatus('O(1) TypeScript processing complete!');
@@ -253,9 +361,10 @@ const floorplanStrategies = {
         
         return {
           processedImage,
-          corners: [],
-          clusteredPoints: [],
-          lines: []
+          corners,
+          lines,
+          lineIntersections,
+          clusteredPoints
         };
       } catch (err) {
         console.error('O(1) processing error:', err);
@@ -293,11 +402,17 @@ document.addEventListener('DOMContentLoaded', () => {
     scanTsButton.addEventListener('click', () => handleScanClick(FloorplanProcessingStrategy.TS_PROCESSOR));
     scanTs2Button.addEventListener('click', () => handleScanClick(FloorplanProcessingStrategy.O1_PROCESSOR));
     
-    // Checkbox dependency handling
-    cornersCheck.addEventListener('change', handleCheckboxDependencies);
-    clusterCheck.addEventListener('change', handleCheckboxDependencies);
-    linesCheck.addEventListener('change', handleCheckboxDependencies);
-    skeletonizeCheck.addEventListener('change', handleCheckboxDependencies);
+    // Checkbox dependency handling for Sonnet
+    cornersCheck.addEventListener('change', handleSonnetCheckboxDependencies);
+    clusterCheck.addEventListener('change', handleSonnetCheckboxDependencies);
+    linesCheck.addEventListener('change', handleSonnetCheckboxDependencies);
+    skeletonizeCheck.addEventListener('change', handleSonnetCheckboxDependencies);
+    
+    // Checkbox dependency handling for O1
+    o1CornersCheck.addEventListener('change', handleO1CheckboxDependencies);
+    o1ClusterCheck.addEventListener('change', handleO1CheckboxDependencies);
+    o1LinesCheck.addEventListener('change', handleO1CheckboxDependencies);
+    o1SkeletonizeCheck.addEventListener('change', handleO1CheckboxDependencies);
     
     // Tab handlers
     apiResultsTab.addEventListener('click', () => switchTab('api'));
@@ -305,11 +420,12 @@ document.addEventListener('DOMContentLoaded', () => {
     ts2ResultsTab.addEventListener('click', () => switchTab('ts2'));
     
     // Initialize checkbox dependencies
-    handleCheckboxDependencies();
+    handleSonnetCheckboxDependencies();
+    handleO1CheckboxDependencies();
 });
 
-// Handle checkbox dependencies
-function handleCheckboxDependencies() {
+// Handle Sonnet checkbox dependencies
+function handleSonnetCheckboxDependencies() {
   // If skeletonize is unchecked, disable all others
   if (!skeletonizeCheck.checked) {
     cornersCheck.disabled = true;
@@ -328,6 +444,27 @@ function handleCheckboxDependencies() {
     
     // Lines can be detected with or without corners
     linesCheck.disabled = false;
+  }
+}
+
+// Handle O1 checkbox dependencies
+function handleO1CheckboxDependencies() {
+  // If skeletonize is unchecked, disable all others
+  if (!o1SkeletonizeCheck.checked) {
+    o1CornersCheck.disabled = true;
+    o1ClusterCheck.disabled = true;
+    o1LinesCheck.disabled = true;
+  } else {
+    o1CornersCheck.disabled = false;
+    o1LinesCheck.disabled = false;
+    
+    // Clustering requires either corners or lines (for intersections)
+    if (!o1CornersCheck.checked && !o1LinesCheck.checked) {
+      o1ClusterCheck.disabled = true;
+      o1ClusterCheck.checked = false;
+    } else {
+      o1ClusterCheck.disabled = false;
+    }
   }
 }
 
@@ -417,12 +554,19 @@ function handleClear() {
     scanTsButton.disabled = true;
     scanTs2Button.disabled = true;
     
-    // Reset checkboxes to default
+    // Reset Sonnet checkboxes to default
     skeletonizeCheck.checked = true;
     cornersCheck.checked = false;
     clusterCheck.checked = false;
     linesCheck.checked = false;
-    handleCheckboxDependencies();
+    handleSonnetCheckboxDependencies();
+    
+    // Reset O1 checkboxes to default
+    o1SkeletonizeCheck.checked = true;
+    o1CornersCheck.checked = false;
+    o1ClusterCheck.checked = false;
+    o1LinesCheck.checked = false;
+    handleO1CheckboxDependencies();
     
     // Clear displays
     previewContainer.innerHTML = '';
