@@ -1,15 +1,124 @@
 /**
  * Feature detection functions for the floorplan processor
  */
-import { Point, DetectionOptions, LineDetectionOptions, ClusterOptions, LineSegment } from "./types.ts";
+import { Point, DetectionOptions, LineDetectionOptions, ClusterOptions, LineSegment, PointType } from "./types.ts";
 
 /**
- * Detects corner points in a binary image using pattern recognition.
- * This is an implementation specifically optimized for detecting wall intersections in floorplans.
+ * Classifies a point based on its neighborhood pattern
+ * Enhanced to better detect junctions, corners and endpoints
+ * 
+ * @param neighborhood A 3x3 array of pixel values (0 or 255)
+ * @returns The point type
+ */
+export function classifyJunctionType(neighborhood: number[]): PointType {
+  // Count total foreground neighbors
+  const neighbors = neighborhood.reduce((sum, val) => sum + val, 0);
+  
+  // Count transitions from 0 to 1
+  let transitions = 0;
+  for (let i = 0; i < neighborhood.length; i++) {
+    if (neighborhood[i] === 0 && neighborhood[(i + 1) % neighborhood.length] === 1) {
+      transitions++;
+    }
+  }
+  
+  // Create a continuous pattern string for easier pattern matching
+  const patternString = neighborhood.join('') + neighborhood[0]; // Add first element to end for circular pattern
+  
+  // Basic endpoint detection
+  if (neighbors === 1) {
+    return PointType.ENDPOINT;
+  }
+  
+  // Enhanced corner detection (L-junction)
+  if (neighbors === 2) {
+    if (transitions === 2) {
+      // Check if the two branches are adjacent for a real corner
+      // Non-adjacent branches indicate a straight line segment, not a corner
+      for (let i = 0; i < neighborhood.length; i++) {
+        if (neighborhood[i] === 1 && neighborhood[(i + 1) % 8] === 1) {
+          return PointType.UNCLASSIFIED; // Adjacent branches indicate a potential line segment
+        }
+      }
+      // Two non-adjacent branches with transition count 2 is a corner
+      return PointType.CORNER;
+    }
+    
+    // Check for additional corner patterns
+    // Look for two branches that are approximately 90° apart
+    const cornerPatterns = [
+      '10000100', // ┌ pattern
+      '01000010', // ┐ pattern  
+      '00100001', // └ pattern
+      '00010001'  // ┘ pattern
+    ];
+    if (cornerPatterns.some(p => patternString.includes(p))) {
+      return PointType.CORNER;
+    }
+  }
+  
+  // Enhanced T-junction detection
+  if (neighbors === 3) {
+    if (transitions === 2) {
+      return PointType.T_JUNCTION;
+    }
+    
+    // Check for additional T-junction patterns
+    const tPatterns = [
+      '10001000', // ┬ pattern
+      '01000100', // ┤ pattern
+      '00100010', // ┴ pattern
+      '00010001'  // ├ pattern
+    ];
+    if (tPatterns.some(p => patternString.includes(p))) {
+      return PointType.T_JUNCTION;
+    }
+  }
+  
+  // Handle complex junctions with 4 or more branches
+  if (neighbors >= 4 && transitions >= 2) {
+    return PointType.INTERSECTION; 
+  }
+  
+  return PointType.UNCLASSIFIED;
+}
+
+/**
+ * Extract a 3x3 neighborhood from ImageData at position (x,y)
+ */
+function getNeighborhood(imageData: ImageData, x: number, y: number): number[] {
+  const { width, height, data } = imageData;
+  
+  // Check bounds
+  if (x < 1 || y < 1 || x >= width - 1 || y >= height - 1) {
+    return [];
+  }
+  
+  // Extract 3x3 neighborhood as binary values (0 or 1)
+  const neighborhood: number[] = [];
+  
+  // Top-left to bottom-right in clockwise order, excluding center
+  const offsets = [
+    [-1, -1], [0, -1], [1, -1], [1, 0],
+    [1, 1], [0, 1], [-1, 1], [-1, 0]
+  ];
+  
+  for (const [dx, dy] of offsets) {
+    const nx = x + dx;
+    const ny = y + dy;
+    const idx = (ny * width + nx) * 4;
+    neighborhood.push(data[idx] > 0 ? 1 : 0);
+  }
+  
+  return neighborhood;
+}
+
+/**
+ * Detects corner points and other junctions in a binary image using advanced pattern recognition.
  * 
  * @param imageData - Skeletonized binary image
  * @param options - Detection options
- * @returns Array of detected corner points {x, y}
+ * @returns Array of detected junction points {x, y, type}
  */
 export function detectCorners(
   imageData: ImageData, 
@@ -17,68 +126,61 @@ export function detectCorners(
 ): Point[] {
   const { width, height, data } = imageData;
   const corners: Point[] = [];
-
+  
   // Default parameter values
-  const minNeighbors = options.minNeighbors ?? 3;
-  const minTransitions = options.minTransitions ?? 2;
-
-  // Helper function to check if a pixel is a corner candidate
-  const isCornerCandidate = (x: number, y: number): boolean => {
-    if (x <= 1 || y <= 1 || x >= width - 2 || y >= height - 2) return false;
-    
-    // Check if this is a foreground pixel
-    const idx = (y * width + x) * 4;
-    if (data[idx] === 0) return false;
-    
-    // Count neighbors (in 3x3 window)
-    let neighborCount = 0;
-    let transitions = 0;
-    const neighborVals: number[] = [];
-
-    // Collect neighbor values in 8-connected neighborhood
-    for (let j = -1; j <= 1; j++) {
-      for (let i = -1; i <= 1; i++) {
-        if (i === 0 && j === 0) continue; // Skip center pixel
-        
-        const nx = x + i;
-        const ny = y + j;
-        const nidx = (ny * width + nx) * 4;
-        
-        const val = data[nidx] > 0 ? 1 : 0;
-        neighborVals.push(val);
-        if (val === 1) neighborCount++;
+  const minNeighbors = options.minNeighbors ?? 1; // Lower this to catch more points
+  const minTransitions = options.minTransitions ?? 1; // Lower this to catch more points
+  const includeTypes = options.includeTypes ?? [
+    PointType.CORNER, 
+    PointType.T_JUNCTION, 
+    PointType.ENDPOINT, 
+    PointType.INTERSECTION
+  ];
+  
+  // Scan the image for all foreground pixels
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const idx = (y * width + x) * 4;
+      
+      // Skip background pixels
+      if (data[idx] === 0) continue;
+      
+      // Get neighborhood
+      const neighborhood = getNeighborhood(imageData, x, y);
+      if (neighborhood.length === 0) continue;
+      
+      // Count foreground neighbors
+      const neighborCount = neighborhood.reduce((sum, val) => sum + val, 0);
+      if (neighborCount < minNeighbors) continue;
+      
+      // Count transitions
+      let transitions = 0;
+      for (let i = 0; i < neighborhood.length; i++) {
+        if (neighborhood[i] === 0 && neighborhood[(i + 1) % 8] === 1) {
+          transitions++;
+        }
       }
-    }
-
-    // Count 0->1 transitions in circular order
-    for (let i = 0; i < neighborVals.length; i++) {
-      if (neighborVals[i] === 0 && neighborVals[(i + 1) % 8] === 1) {
-        transitions++;
-      }
-    }
-
-    // A corner should have sufficient foreground neighbors
-    // and enough transitions (for T-junction or X-crossing)
-    return neighborCount >= minNeighbors && transitions >= minTransitions;
-  };
-
-  // Scan the image for corner candidates
-  for (let y = 2; y < height - 2; y++) {
-    for (let x = 2; x < width - 2; x++) {
-      if (isCornerCandidate(x, y)) {
-        corners.push({ x, y });
+      if (transitions < minTransitions) continue;
+      
+      // Classify the junction type
+      const pointType = classifyJunctionType(neighborhood);
+      
+      // Add point if it's of a requested type
+      if (includeTypes.includes(pointType)) {
+        corners.push({ x, y, type: pointType });
       }
     }
   }
-
+  
   console.log(`[DEBUG] Detected ${corners.length} corner candidates`);
   return corners;
 }
 
 /**
  * Clusters nearby points into a single point using distance-based clustering.
+ * Enhanced version with type-aware clustering to improve junction detection.
  * 
- * @param points - Array of points {x, y}
+ * @param points - Array of points {x, y, type}
  * @param options - Clustering options
  * @returns Array of clustered points (centroids)
  */
@@ -89,54 +191,110 @@ export function clusterPoints(
   if (points.length === 0) return [];
 
   const maxDistance = options.maxDistance ?? 10;
-
-  // Create clusters initially containing one point each
-  let clusters: (Point[] | null)[] = points.map(point => [point]);
-  let mergeOccurred = true;
-
-  // Iteratively merge clusters until no more merges occur
-  while (mergeOccurred) {
-    mergeOccurred = false;
-
-    for (let i = 0; i < clusters.length; i++) {
-      if (!clusters[i]) continue; // Skip already merged clusters
-
-      for (let j = i + 1; j < clusters.length; j++) {
-        if (!clusters[j]) continue; // Skip already merged clusters
-
-        // Check distance between clusters
-        const canMerge = clusters[i]!.some(p1 => 
-          clusters[j]!.some(p2 => {
-            const dx = p1.x - p2.x;
-            const dy = p1.y - p2.y;
-            return Math.sqrt(dx*dx + dy*dy) <= maxDistance;
-          })
-        );
-
-        // Merge clusters if they're close enough
-        if (canMerge) {
-          clusters[i] = clusters[i]!.concat(clusters[j]!);
-          clusters[j] = null; // Mark as merged
-          mergeOccurred = true;
+  const distanceThreshold = options.distanceThreshold ?? 30; // Max distance threshold
+  const minClusterSize = options.minClusterSize ?? 1; // Default to 1 to keep all clusters
+  const preserveTypes = options.preserveTypes ?? true; // Whether to prioritize junction types
+  
+  // Group points by type first if preserveTypes is enabled
+  const pointsByType: Record<string, Point[]> = {};
+  
+  if (preserveTypes) {
+    // Group by type
+    for (const point of points) {
+      const type = point.type || PointType.UNCLASSIFIED;
+      if (!pointsByType[type]) {
+        pointsByType[type] = [];
+      }
+      pointsByType[type].push(point);
+    }
+  } else {
+    // Just one group with all points
+    pointsByType['all'] = points;
+  }
+  
+  // Process each type group separately
+  const allClusters: Point[] = [];
+  
+  for (const type in pointsByType) {
+    const typePoints = pointsByType[type];
+    
+    // Create clusters initially containing one point each
+    let clusters: (Point[] | null)[] = typePoints.map(point => [point]);
+    let mergeOccurred = true;
+    
+    // Iteratively merge clusters until no more merges occur
+    while (mergeOccurred) {
+      mergeOccurred = false;
+      
+      for (let i = 0; i < clusters.length; i++) {
+        if (!clusters[i]) continue; // Skip already merged clusters
+        
+        for (let j = i + 1; j < clusters.length; j++) {
+          if (!clusters[j]) continue; // Skip already merged clusters
+          
+          // Check distance between clusters
+          const canMerge = clusters[i]!.some(p1 => 
+            clusters[j]!.some(p2 => {
+              const dx = p1.x - p2.x;
+              const dy = p1.y - p2.y;
+              const dist = Math.sqrt(dx*dx + dy*dy);
+              // Only merge if within the merge distance threshold
+              return dist <= maxDistance;
+            })
+          );
+          
+          // Merge clusters if they're close enough
+          if (canMerge) {
+            clusters[i] = clusters[i]!.concat(clusters[j]!);
+            clusters[j] = null; // Mark as merged
+            mergeOccurred = true;
+          }
         }
       }
+      
+      // Filter out null clusters
+      if (mergeOccurred) {
+        clusters = clusters.filter(cluster => cluster !== null);
+      }
     }
-
-    // Filter out null clusters
-    if (mergeOccurred) {
-      clusters = clusters.filter(cluster => cluster !== null);
-    }
+    
+    // Calculate centroids (averages) for each cluster
+    const typeClusters = clusters
+      .filter(cluster => cluster!.length >= minClusterSize)
+      .map(cluster => {
+        const sumX = cluster!.reduce((sum, p) => sum + p.x, 0);
+        const sumY = cluster!.reduce((sum, p) => sum + p.y, 0);
+        
+        // Determine the most common point type in this cluster
+        const typeCounts: Record<string, number> = {};
+        for (const point of cluster!) {
+          const pointType = point.type || PointType.UNCLASSIFIED;
+          typeCounts[pointType] = (typeCounts[pointType] || 0) + 1;
+        }
+        
+        // Find the most frequent type
+        let mostCommonType = PointType.UNCLASSIFIED;
+        let maxCount = 0;
+        for (const type in typeCounts) {
+          if (typeCounts[type] > maxCount) {
+            maxCount = typeCounts[type];
+            mostCommonType = type as PointType;
+          }
+        }
+        
+        return {
+          x: Math.round(sumX / cluster!.length),
+          y: Math.round(sumY / cluster!.length),
+          type: mostCommonType as PointType,
+          count: cluster!.length  // Keep track of cluster size
+        };
+      });
+    
+    allClusters.push(...typeClusters);
   }
-
-  // Calculate centroids (averages) for each cluster
-  return clusters.map(cluster => {
-    const sumX = cluster!.reduce((sum, p) => sum + p.x, 0);
-    const sumY = cluster!.reduce((sum, p) => sum + p.y, 0);
-    return { 
-      x: Math.round(sumX / cluster!.length), 
-      y: Math.round(sumY / cluster!.length) 
-    };
-  });
+  
+  console.log(`[DEBUG] Clustered into ${allClusters.length} points`);
+  return allClusters;
 }
 
 /**

@@ -9,6 +9,7 @@ export type Point = {
   x: number; 
   y: number;
   type?: PointType; 
+  count?: number; // For tracking cluster sizes
 };
 
 /**
@@ -60,6 +61,7 @@ export interface ProcessingOptions {
 export interface DetectionOptions {
   minNeighbors?: number;
   minTransitions?: number;
+  includeTypes?: PointType[]; // Types of points to include in detection
 }
 
 /**
@@ -77,4 +79,8 @@ export interface LineDetectionOptions {
  */
 export interface ClusterOptions {
   maxDistance?: number;
+  distanceThreshold?: number; // Maximum distance threshold for including points in clustering
+  minClusterSize?: number;   // Minimum number of points in a cluster to be considered valid
+  validateWalls?: boolean;   // Whether to validate that clusters are actually on walls
+  preserveTypes?: boolean;   // Whether to group points by type before clustering
 }
