@@ -198,17 +198,59 @@ const floorplanStrategies = {
       // 4. Detect lines if option is checked
       if (doLines && processedImage) {
         updateResultsStatus('Detecting lines...');
-        lines = detectStraightWallsHough(
-          processedImage.skeleton, 
-          30,  // threshold
-          50,  // minLineLength
-          10   // maxLineGap
-        );
         
-        // Draw the lines on the canvas
-        drawLines(processedImage.skeleton, lines);
-        renderImageDataToCanvas(processedImage.skeleton, canvas);
-        updateResultsStatus(`Detected ${lines.length} lines.`);
+        // Calculate better threshold based on image size
+        const adaptiveThreshold = Math.max(20, Math.min(30, Math.floor(canvas.width / 20)));
+        const adaptiveMinLength = Math.max(30, Math.min(50, Math.floor(canvas.width / 10)));
+        const adaptiveMaxGap = Math.max(5, Math.min(15, Math.floor(canvas.width / 40)));
+        
+        updateResultsStatus(`Using line parameters - threshold: ${adaptiveThreshold}, minLength: ${adaptiveMinLength}, maxGap: ${adaptiveMaxGap}`);
+        
+        if (clusteredPoints.length > 0) {
+          // If we have clustered points, use our new algorithm that connects points directly
+          updateResultsStatus('Using clustered points to generate lines...');
+          
+          // Call the improved wall detection with the clustered points
+          lines = detectStraightWallsHough(
+            processedImage.skeleton,
+            adaptiveThreshold,
+            adaptiveMinLength,
+            adaptiveMaxGap,
+            clusteredPoints  // Pass the clustered points to the algorithm
+          );
+          
+          updateResultsStatus(`Created ${lines.length} lines from wall detection.`);
+        } else if (corners.length > 0) {
+          // If we have corners but no clusters, use corners directly
+          updateResultsStatus('Using detected corners to generate lines...');
+          
+          // Call the improved wall detection with corner points
+          lines = detectStraightWallsHough(
+            processedImage.skeleton,
+            adaptiveThreshold,
+            adaptiveMinLength,
+            adaptiveMaxGap,
+            corners  // Pass corner points to the algorithm
+          );
+          
+          updateResultsStatus(`Created ${lines.length} lines using corner points.`);
+        } else {
+          // Fallback to basic Hough transform without extra points
+          lines = detectStraightWallsHough(
+            processedImage.skeleton, 
+            adaptiveThreshold,
+            adaptiveMinLength,
+            adaptiveMaxGap
+          );
+          updateResultsStatus(`Detected ${lines.length} lines with Hough transform.`);
+        }
+        
+        // Draw the lines with increased width for better visibility
+        if (lines.length > 0) {
+          // Draw lines with a green color
+          drawLines(processedImage.skeleton, lines);
+          renderImageDataToCanvas(processedImage.skeleton, canvas);
+        }
       }
       
       tsImageProcessed = true;
