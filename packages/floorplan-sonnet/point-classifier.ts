@@ -16,7 +16,7 @@ export interface Point {
 
 /**
  * Classifies a point based on its 3x3 neighborhood pattern
- * Similar to the Python classify_point function
+ * Enhanced version to better detect junctions and corners
  * 
  * @param neighborhood A 3x3 array of pixel values (0 or 255)
  * @returns The point type: 'endpoint', 'corner', 't_junction', or 'none'
@@ -37,14 +37,14 @@ export function classifyPoint(neighborhood: Uint8ClampedArray | number[][]): Poi
     
     // Convert to 1D array of 8 neighbors in clockwise order
     pattern = [
-      neighborhood[0][1] > 0 ? 1 : 0, // Top
-      neighborhood[0][2] > 0 ? 1 : 0, // Top-right
-      neighborhood[1][2] > 0 ? 1 : 0, // Right
-      neighborhood[2][2] > 0 ? 1 : 0, // Bottom-right
-      neighborhood[2][1] > 0 ? 1 : 0, // Bottom
-      neighborhood[2][0] > 0 ? 1 : 0, // Bottom-left
-      neighborhood[1][0] > 0 ? 1 : 0, // Left
-      neighborhood[0][0] > 0 ? 1 : 0  // Top-left
+      neighborhood[0][1] > 0 ? 1 : 0, // Top (P2)
+      neighborhood[0][2] > 0 ? 1 : 0, // Top-right (P3)
+      neighborhood[1][2] > 0 ? 1 : 0, // Right (P4)
+      neighborhood[2][2] > 0 ? 1 : 0, // Bottom-right (P5)
+      neighborhood[2][1] > 0 ? 1 : 0, // Bottom (P6)
+      neighborhood[2][0] > 0 ? 1 : 0, // Bottom-left (P7)
+      neighborhood[1][0] > 0 ? 1 : 0, // Left (P8)
+      neighborhood[0][0] > 0 ? 1 : 0  // Top-left (P9)
     ];
   } else {
     // Handle Uint8ClampedArray input (assuming RGBA format)
@@ -58,18 +58,18 @@ export function classifyPoint(neighborhood: Uint8ClampedArray | number[][]): Poi
     
     // Convert to 1D array of 8 neighbors in clockwise order
     pattern = [
-      neighborhood[4 * 1 + 0] > 0 ? 1 : 0, // Top
-      neighborhood[4 * 2 + 0] > 0 ? 1 : 0, // Top-right
-      neighborhood[4 * 5 + 0] > 0 ? 1 : 0, // Right
-      neighborhood[4 * 8 + 0] > 0 ? 1 : 0, // Bottom-right
-      neighborhood[4 * 7 + 0] > 0 ? 1 : 0, // Bottom
-      neighborhood[4 * 6 + 0] > 0 ? 1 : 0, // Bottom-left
-      neighborhood[4 * 3 + 0] > 0 ? 1 : 0, // Left
-      neighborhood[4 * 0 + 0] > 0 ? 1 : 0  // Top-left
+      neighborhood[4 * 1 + 0] > 0 ? 1 : 0, // Top (P2)
+      neighborhood[4 * 2 + 0] > 0 ? 1 : 0, // Top-right (P3)
+      neighborhood[4 * 5 + 0] > 0 ? 1 : 0, // Right (P4)
+      neighborhood[4 * 8 + 0] > 0 ? 1 : 0, // Bottom-right (P5)
+      neighborhood[4 * 7 + 0] > 0 ? 1 : 0, // Bottom (P6)
+      neighborhood[4 * 6 + 0] > 0 ? 1 : 0, // Bottom-left (P7)
+      neighborhood[4 * 3 + 0] > 0 ? 1 : 0, // Left (P8)
+      neighborhood[4 * 0 + 0] > 0 ? 1 : 0  // Top-left (P9)
     ];
   }
   
-  // Count neighbors
+  // Count total foreground neighbors
   const neighbors = pattern.reduce((sum, val) => sum + val, 0);
   
   // Count transitions from 0 to 1
@@ -79,16 +79,75 @@ export function classifyPoint(neighborhood: Uint8ClampedArray | number[][]): Poi
       transitions++;
     }
   }
-  
-  // Logic (same as Python version)
+
+  // Extended connectivity analysis for junctions
+  // Create a continuous pattern string for easier pattern matching
+  const patternString = pattern.join('') + pattern[0]; // Add first element to end for circular pattern
+
+  // Basic endpoint detection
   if (neighbors === 1) {
     return 'endpoint';
-  } else if (transitions === 2) {
-    if (neighbors === 2) {
-      return 'corner';
-    } else if (neighbors === 3) {
+  }
+
+  // Enhanced T-junction detection
+  // A T-junction has 3 branches extending from it
+  if (neighbors === 3) {
+    // Check if branches form a T shape
+    // We look for specific patterns that indicate T-junctions
+    if (transitions === 2) {
       return 't_junction';
     }
+    
+    // Check for additional T-junction patterns that might be missed by the transition count
+    // These are patterns where 3 branches extend from the center but don't perfectly match
+    // the normal T-junction pattern
+    
+    // Pattern with 3 connected pixels where two form a line and one branches off
+    const tPatterns = [
+      '10001000', // ┬ pattern
+      '01000100', // ┤ pattern
+      '00100010', // ┴ pattern
+      '00010001'  // ├ pattern
+    ];
+
+    if (tPatterns.some(p => patternString.includes(p))) {
+      return 't_junction';
+    }
+  }
+
+  // Enhanced corner detection
+  // A corner has 2 branches extending from it at approximately 90 degrees
+  if (neighbors === 2) {
+    if (transitions === 2) {
+      // Check if the two branches are adjacent for a real corner
+      // Non-adjacent branches indicate a straight line segment, not a corner
+      for (let i = 0; i < pattern.length; i++) {
+        if (pattern[i] === 1 && pattern[(i + 1) % 8] === 1) {
+          return 'none'; // Adjacent branches indicate a potential line segment
+        }
+      }
+
+      // Two non-adjacent branches with transition count 2 is a corner
+      return 'corner';
+    }
+    
+    // Check for additional corner patterns
+    // Look for two branches that are approximately 90° apart
+    const cornerPatterns = [
+      '10000100', // ┌ pattern
+      '01000010', // ┐ pattern  
+      '00100001', // └ pattern
+      '00010001'  // ┘ pattern
+    ];
+
+    if (cornerPatterns.some(p => patternString.includes(p))) {
+      return 'corner';
+    }
+  }
+
+  // Handle complex junctions with 4 or more branches
+  if (neighbors >= 4 && transitions >= 2) {
+    return 't_junction'; // Treat as complex junction point
   }
   
   return 'none';
@@ -129,9 +188,9 @@ function getNeighborhood(imageData: ImageData, x: number, y: number): Uint8Clamp
  */
 export function detectCorners(
   skelImageData: ImageData,
-  maxCorners: number = 500,
+  maxCorners: number = 3000,
   qualityLevel: number = 0.001,
-  minDistance: number = 10
+  minDistance: number = 3
 ): Point[] {
   const { width, height, data } = skelImageData;
   const importantPoints: Point[] = [];
@@ -154,10 +213,13 @@ export function detectCorners(
       
       // Add important points
       if (pointType !== 'none') {
-        // Check if point is already close to an existing point
-        const isDuplicate = importantPoints.some(p => 
-          Math.abs(p.x - x) < minDistance && Math.abs(p.y - y) < minDistance
-        );
+        // More lenient duplicate checking - only check exact matches or very close points
+        const isDuplicate = importantPoints.some(p => {
+          const dx = Math.abs(p.x - x);
+          const dy = Math.abs(p.y - y);
+          // Points must be very close and of the same type to be considered duplicates
+          return dx <= minDistance && dy <= minDistance && p.type === pointType;
+        });
         
         if (!isDuplicate) {
           importantPoints.push({ x, y, type: pointType });
@@ -178,11 +240,11 @@ export function detectCorners(
  * @param numClusters Number of clusters to form
  * @returns Array of cluster centers (points)
  */
-export function clusterPoints(points: Point[], numClusters: number = 20): Point[] {
+export function clusterPoints(points: Point[], numClusters: number = 50): Point[] {
   if (points.length === 0) return [];
   
-  // Use at most the number of points we have
-  const k = Math.min(numClusters, points.length);
+  // Use at least 20 clusters but no more than half the points
+  const k = Math.min(Math.max(numClusters, 20), Math.floor(points.length / 2));
   
   // Initialize clusters with random points
   const clusters: Point[] = [];
@@ -204,6 +266,11 @@ export function clusterPoints(points: Point[], numClusters: number = 20): Point[
   // Array to store cluster assignments for each point
   const assignments: number[] = new Array(points.length).fill(-1);
   
+  // Initialize sums array outside the loop so it's accessible for final filtering
+  const sums: { x: number; y: number; count: number }[] = clusters.map(() => ({
+    x: 0, y: 0, count: 0
+  }));
+  
   while (changed && iterations < MAX_ITERATIONS) {
     changed = false;
     iterations++;
@@ -220,7 +287,8 @@ export function clusterPoints(points: Point[], numClusters: number = 20): Point[
           Math.pow(point.x - cluster.x, 2) + Math.pow(point.y - cluster.y, 2)
         );
         
-        if (dist < minDist) {
+        // Use a distance threshold to prevent points too far from being clustered
+        if (dist < minDist && dist < 30) { // 30px max distance threshold
           minDist = dist;
           minIdx = j;
         }
@@ -233,16 +301,21 @@ export function clusterPoints(points: Point[], numClusters: number = 20): Point[
       }
     }
     
-    // Update cluster centers
-    const sums: { x: number; y: number; count: number }[] = clusters.map(() => ({
-      x: 0, y: 0, count: 0
-    }));
+    // Reset sums for this iteration
+    sums.forEach(sum => {
+      sum.x = 0;
+      sum.y = 0;
+      sum.count = 0;
+    });
     
+    // Update cluster centers
     for (let i = 0; i < points.length; i++) {
       const clusterIdx = assignments[i];
-      sums[clusterIdx].x += points[i].x;
-      sums[clusterIdx].y += points[i].y;
-      sums[clusterIdx].count++;
+      if (clusterIdx !== -1) { // Only count assigned points
+        sums[clusterIdx].x += points[i].x;
+        sums[clusterIdx].y += points[i].y;
+        sums[clusterIdx].count++;
+      }
     }
     
     // Calculate new cluster centers
@@ -254,7 +327,8 @@ export function clusterPoints(points: Point[], numClusters: number = 20): Point[
     }
   }
   
-  return clusters;
+  // Filter out empty clusters
+  return clusters.filter((_, i) => sums[i].count > 0);
 }
 
 /**
