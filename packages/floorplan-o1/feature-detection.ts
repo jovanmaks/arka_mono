@@ -340,6 +340,14 @@ export function clusterPoints(
   console.log(`Intersections: ${typeCounts[PointType.INTERSECTION] || 0}`);
   console.log(`Unclassified: ${typeCounts[PointType.UNCLASSIFIED] || 0}`);
   
+  // Log detailed point type statistics
+  console.log('[DEBUG] Point types after clustering:');
+  console.log(`L-Corners: ${typeCounts[PointType.CORNER] || 0}`);
+  console.log(`T-Junctions: ${typeCounts[PointType.T_JUNCTION] || 0}`);
+  console.log(`X-Intersections: ${typeCounts[PointType.INTERSECTION] || 0}`);
+  console.log(`Endpoints: ${typeCounts[PointType.ENDPOINT] || 0}`);
+  console.log(`Unclassified: ${typeCounts[PointType.UNCLASSIFIED] || 0}`);
+  
   return allClusters;
 }
 

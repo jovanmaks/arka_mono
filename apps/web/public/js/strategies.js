@@ -232,14 +232,26 @@ export function createFloorplanStrategies({
           <div>
             <h3>TypeScript Implementation Results:</h3>
             <p>
+              <strong>Detected Features:</strong>
               <ul>
-                <li>Detected ${corners.length} corners</li>
-                <li>Clustered into ${clusteredPoints.length} points</li>
-                <li>Found ${lines.length} lines</li>
-                <li>Endpoints: ${pointTypes['endpoint'] || 0}</li>
+                <li>Total Points: ${clusteredPoints.length}</li>
+                <li>Total Lines: ${lines.length}</li>
+              </ul>
+              
+              <strong>Junction Types:</strong>
+              <ul>
+                <li>L-Junctions (Corners): ${pointTypes['corner'] || 0}</li>
                 <li>T-Junctions: ${pointTypes['t_junction'] || 0}</li>
-                <li>Corners: ${pointTypes['corner'] || 0}</li>
-                <li>Intersections: ${pointTypes['intersection'] || 0}</li>
+                <li>X-Junctions (Intersections): ${pointTypes['intersection'] || 0}</li>
+                <li>Endpoints: ${pointTypes['endpoint'] || 0}</li>
+                <li>Unclassified: ${pointTypes['unclassified'] || 0}</li>
+              </ul>
+              
+              <strong>Debug Info:</strong>
+              <ul>
+                <li>Threshold Value: ${options.threshVal}</li>
+                <li>Original Size: ${processedImage.originalWidth} × ${processedImage.originalHeight}</li>
+                <li>Algorithm: ${processedImage.debugInfo?.algorithm || 'Sonnet Skeletonization'}</li>
               </ul>
             </p>
           </div>
@@ -473,25 +485,25 @@ export function createFloorplanStrategies({
             counts[point.type || 'unclassified'] = (counts[point.type || 'unclassified'] || 0) + 1;
             return counts;
           }, {});
+          
           const resultsInfo = document.createElement('div');
           resultsInfo.innerHTML = `<p>
+            <strong>Detected Features:</strong>
             <ul>
-              <li>Detected ${corners.length} corners</li>
-              <li>Found ${lines.length} line segments</li>
-              <li>Found ${lineIntersections.length} line intersections</li>
-              <li>Extracted ${lineEndpoints.length} line endpoints</li>
-              <li>Clustered into ${clusteredPoints.length} points</li>
-              <li>Point types after clustering:</li>
-              <ul>
-                <li>Endpoints: ${pointTypes['endpoint'] || 0}</li>
-                <li>T-Junctions: ${pointTypes['t_junction'] || 0}</li>
-                <li>Corners: ${pointTypes['corner'] || 0}</li>
-                <li>Intersections: ${pointTypes['intersection'] || 0}</li>
-                <li>Unclassified: ${pointTypes['unclassified'] || 0}</li>
-              </ul>
+              <li>Total Points: ${clusteredPoints.length}</li>
+              <li>Total Lines: ${lines.length}</li>
+              <li>Line Intersections: ${lineIntersections.length}</li>
             </ul>
-          </p>
-          <p>
+            
+            <strong>Junction Types:</strong>
+            <ul>
+              <li>L-Junctions (Corners): ${pointTypes['corner'] || 0}</li>
+              <li>T-Junctions: ${pointTypes['t_junction'] || 0}</li>
+              <li>X-Junctions (Intersections): ${pointTypes['intersection'] || 0}</li>
+              <li>Endpoints: ${pointTypes['endpoint'] || 0}</li>
+              <li>Unclassified: ${pointTypes['unclassified'] || 0}</li>
+            </ul>
+            
             <strong>Debug Info:</strong>
             <ul>
               <li>Threshold Value: ${options.threshVal}</li>
@@ -500,6 +512,7 @@ export function createFloorplanStrategies({
               <li>Line Detection: ${lines.length >= 3 ? 'Junction-based' : 'Hough transform'}</li>
             </ul>
           </p>`;
+          
           ts2ResultContainer.appendChild(resultsInfo);
           
           updateStatus('O(1) TypeScript processing complete!', statusContainer);
