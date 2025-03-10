@@ -22,7 +22,7 @@ export function createFloorplanStrategies({
   ts2ResultContainer, clearCanvas, skeletonizeImage, detectCorners, clusterPoints,
   detectStraightWallsHough, drawLines, skeletonize2Image, detectCorners2, 
   clusterPoints2, detectStraightLines2, drawLines2, drawCorners2, 
-  findIntersections, drawClusteredPoints2
+  findIntersections, drawClusteredPoints2, connectJunctionsToLines
 }) {
   return {
     // Python API Strategy
@@ -359,28 +359,76 @@ export function createFloorplanStrategies({
             updateResultsStatus(`Found ${corners.length} corners with O(1) algorithm.`, resultsStatusContainer);
           }
           
-          // 3. Detect lines if option is checked (do this before clustering to get intersections)
+          // 3. Create lines using different approaches
           if (doLines && processedImage) {
             updateResultsStatus('Detecting lines with O(1) algorithm...', resultsStatusContainer);
-            // Calculate line threshold based on the main threshold, but ensure it's in a sensible range
-            // Different scale for line detection since it uses a different algorithm
-            const lineThreshold = Math.max(5, Math.floor(options.threshVal / 4));
-            console.log(`Using line threshold value: ${lineThreshold} (derived from ${options.threshVal})`);
             
-            lines = detectStraightLines2(
-              processedImage.skeleton, 
-              lineThreshold,  // Use scaled threshold from user input
-              30,  // minLineLength
-              8    // maxLineGap
-            );
-            
-            // Draw the lines on the canvas
-            if (lines.length > 0) {
-              const imageWithLines = drawLines2(processedImage.skeleton, lines, true);
-              renderImageDataToCanvas2(imageWithLines, o1Canvas);
+            // A) First try the new junction-based approach if we have corners
+            if (corners.length > 0) {
+              updateResultsStatus('Creating lines by connecting detected junctions...', resultsStatusContainer);
+              
+              // Use our new method that connects junctions and endpoints
+              lines = connectJunctionsToLines(
+                processedImage.skeleton,
+                corners,
+                {
+                  maxDistance: 100,  // Maximum distance to search for connections
+                  maxLineGap: 8      // For filtering duplicate lines
+                }
+              );
+              
+              updateResultsStatus(`Created ${lines.length} lines by connecting junctions.`, resultsStatusContainer);
+              
+              // If we have enough lines, we'll use those results
+              if (lines.length >= 3) {
+                // Draw the lines on the canvas
+                if (lines.length > 0) {
+                  const imageWithLines = drawLines2(processedImage.skeleton, lines, true);
+                  renderImageDataToCanvas2(imageWithLines, o1Canvas);
+                }
+              } else {
+                // Fallback to the original Hough transform method
+                updateResultsStatus('Not enough lines found with junction method, falling back to Hough transform...', resultsStatusContainer);
+                
+                // B) Fallback to the standard line detection
+                const lineThreshold = Math.max(5, Math.floor(options.threshVal / 4));
+                console.log(`Using line threshold value: ${lineThreshold} (derived from ${options.threshVal})`);
+                
+                lines = detectStraightLines2(
+                  processedImage.skeleton, 
+                  lineThreshold,  // Use scaled threshold from user input
+                  30,  // minLineLength
+                  8    // maxLineGap
+                );
+                
+                // Draw the lines on the canvas
+                if (lines.length > 0) {
+                  const imageWithLines = drawLines2(processedImage.skeleton, lines, true);
+                  renderImageDataToCanvas2(imageWithLines, o1Canvas);
+                }
+                
+                updateResultsStatus(`Detected ${lines.length} lines with Hough transform.`, resultsStatusContainer);
+              }
+            } else {
+              // Just use the standard line detection if no corners detected
+              const lineThreshold = Math.max(5, Math.floor(options.threshVal / 4));
+              console.log(`Using line threshold value: ${lineThreshold} (derived from ${options.threshVal})`);
+              
+              lines = detectStraightLines2(
+                processedImage.skeleton, 
+                lineThreshold,  // Use scaled threshold from user input
+                30,  // minLineLength
+                8    // maxLineGap
+              );
+              
+              // Draw the lines on the canvas
+              if (lines.length > 0) {
+                const imageWithLines = drawLines2(processedImage.skeleton, lines, true);
+                renderImageDataToCanvas2(imageWithLines, o1Canvas);
+              }
+              
+              updateResultsStatus(`Detected ${lines.length} lines with Hough transform.`, resultsStatusContainer);
             }
-            
-            updateResultsStatus(`Detected ${lines.length} lines with O(1) algorithm.`, resultsStatusContainer);
             
             // Find intersections of lines
             lineIntersections = findIntersections(lines);
@@ -425,7 +473,6 @@ export function createFloorplanStrategies({
             counts[point.type || 'unclassified'] = (counts[point.type || 'unclassified'] || 0) + 1;
             return counts;
           }, {});
-
           const resultsInfo = document.createElement('div');
           resultsInfo.innerHTML = `<p>
             <ul>
@@ -450,6 +497,7 @@ export function createFloorplanStrategies({
               <li>Threshold Value: ${options.threshVal}</li>
               <li>Algorithm: ${processedImage.debugInfo.algorithm || 'O(1) Skeletonization'}</li>
               <li>Original Size: ${processedImage.originalWidth} × ${processedImage.originalHeight}</li>
+              <li>Line Detection: ${lines.length >= 3 ? 'Junction-based' : 'Hough transform'}</li>
             </ul>
           </p>`;
           ts2ResultContainer.appendChild(resultsInfo);

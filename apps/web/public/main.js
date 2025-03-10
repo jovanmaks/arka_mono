@@ -43,7 +43,8 @@ import {
   detectStraightLines as detectStraightLines2,
   drawLines as drawLines2,
   drawCorners as drawCorners2,
-  findIntersections
+  findIntersections,
+  connectJunctionsToLines
 } from "/floorplan-o1/mod.js";
 
 // State management
@@ -130,7 +131,8 @@ function initializeStrategies() {
     drawLines2,
     drawCorners2,
     findIntersections,
-    drawClusteredPoints2
+    drawClusteredPoints2,
+    connectJunctionsToLines
   });
 
   return floorplanStrategies;

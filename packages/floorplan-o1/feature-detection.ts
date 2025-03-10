@@ -344,6 +344,105 @@ export function clusterPoints(
 }
 
 /**
+ * Creates line segments by connecting junctions and endpoints.
+ * This approach uses junction information rather than a Hough transform.
+ * 
+ * @param imageData - Binary image data
+ * @param points - Array of junction and endpoint points to connect
+ * @param options - Line connection options
+ * @returns Array of detected line segments { x1, y1, x2, y2 }
+ */
+export function connectJunctionsToLines(
+  imageData: ImageData,
+  points: Point[],
+  options: LineDetectionOptions = {}
+): LineSegment[] {
+  if (points.length < 2) {
+    return [];
+  }
+
+  const { width, height, data } = imageData;
+  const lines: LineSegment[] = [];
+  
+  // Default parameter values
+  const maxLineGap = options.maxLineGap ?? 5;
+  const maxConnectionDistance = options.maxDistance ?? 100; // Maximum distance to search for connections
+  
+  // Create a function to check if a line between two points is valid
+  // by checking that it follows the foreground pixels in the image
+  const isLineValid = (p1: Point, p2: Point): boolean => {
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Skip very long connections
+    if (distance > maxConnectionDistance) {
+      return false;
+    }
+    
+    // Sample points along the line to check if they follow the foreground path
+    const steps = Math.max(10, Math.floor(distance / 2));
+    let foregroundCount = 0;
+    
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const x = Math.round(p1.x + dx * t);
+      const y = Math.round(p1.y + dy * t);
+      
+      if (x >= 0 && x < width && y >= 0 && y < height) {
+        const idx = (y * width + x) * 4;
+        if (data[idx] > 0) {
+          foregroundCount++;
+        }
+      }
+    }
+    
+    // Line is valid if at least 70% of points are on foreground pixels
+    // For very short lines, we'll use a higher percentage
+    const minRequiredPercentage = distance < 20 ? 0.9 : 0.7;
+    return foregroundCount / steps >= minRequiredPercentage;
+  };
+  
+  // For each point, try to connect to all other points and check if the connection is valid
+  for (let i = 0; i < points.length; i++) {
+    const p1 = points[i];
+    
+    for (let j = i + 1; j < points.length; j++) {
+      const p2 = points[j];
+      
+      // Check if this is a valid connection
+      if (isLineValid(p1, p2)) {
+        lines.push({
+          x1: p1.x,
+          y1: p1.y,
+          x2: p2.x,
+          y2: p2.y
+        });
+      }
+    }
+  }
+  
+  // Filter duplicate or nearly identical lines
+  const filteredLines: LineSegment[] = [];
+  for (const line of lines) {
+    const isDuplicate = filteredLines.some(l => {
+      const d1 = Math.hypot(l.x1 - line.x1, l.y1 - line.y1) + 
+                Math.hypot(l.x2 - line.x2, l.y2 - line.y2);
+      const d2 = Math.hypot(l.x1 - line.x2, l.y1 - line.y2) + 
+                Math.hypot(l.x2 - line.x1, l.y2 - line.y1);
+      return d1 <= maxLineGap*2 || d2 <= maxLineGap*2;
+    });
+    
+    if (!isDuplicate) {
+      filteredLines.push(line);
+    }
+  }
+  
+  console.log(`[DEBUG] Created ${filteredLines.length} wall lines by connecting junctions`);
+  return filteredLines;
+}
+
+/**
  * Detects straight line segments in the skeleton image using a simplified Hough transform approach.
  * 
  * @param imageData - Binary image data
