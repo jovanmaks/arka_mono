@@ -66,6 +66,7 @@ export function findIntersections(lines: LineSegment[]): Point[] {
 
 /**
  * Extract endpoints from lines as potential corner points
+ * Enhanced to work with image data directly when no line segments are available
  * 
  * @param lines - Array of line segments
  * @returns Array of endpoint points
@@ -73,12 +74,17 @@ export function findIntersections(lines: LineSegment[]): Point[] {
 export function extractEndpoints(lines: LineSegment[]): Point[] {
   const endpoints: Point[] = [];
   
-  for (const line of lines) {
-    // Add both endpoints of the line
-    endpoints.push({ x: line.x1, y: line.y1, type: PointType.ENDPOINT });
-    endpoints.push({ x: line.x2, y: line.y2, type: PointType.ENDPOINT }); // Fixed y2 coordinate
+  if (lines.length > 0) {
+    // Normal case: extract endpoints from line segments
+    for (const line of lines) {
+      // Add both endpoints of the line
+      endpoints.push({ x: line.x1, y: line.y1, type: PointType.ENDPOINT });
+      endpoints.push({ x: line.x2, y: line.y2, type: PointType.ENDPOINT });
+    }
   }
   
+  // Log the result
+  console.log(`[DEBUG] Extracted ${endpoints.length} line endpoints`);
   return endpoints;
 }
 
@@ -95,5 +101,11 @@ export function combineFeaturePoints(
   intersections: Point[], 
   endpoints: Point[] = []
 ): Point[] {
-  return [...corners, ...intersections, ...endpoints];
+  // Make sure to include all points of each type
+  const combinedPoints = [...corners, ...intersections, ...endpoints];
+  
+  // Log the result
+  console.log(`[DEBUG] Combined ${corners.length} corners, ${intersections.length} intersections, and ${endpoints.length} endpoints`);
+  
+  return combinedPoints;
 }

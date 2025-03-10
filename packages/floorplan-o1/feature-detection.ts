@@ -25,9 +25,20 @@ export function classifyJunctionType(neighborhood: number[]): PointType {
   // Create a continuous pattern string for easier pattern matching
   const patternString = neighborhood.join('') + neighborhood[0]; // Add first element to end for circular pattern
   
-  // Basic endpoint detection
-  if (neighbors === 1) {
-    return PointType.ENDPOINT;
+  // Enhanced endpoint detection - more permissive to catch more endpoints
+  if (neighbors === 1 || (neighbors === 2 && transitions >= 2)) {
+    // Basic endpoint case: only one neighbor
+    if (neighbors === 1) {
+      return PointType.ENDPOINT;
+    }
+    
+    // Special case for endpoints with 2 neighbors that might be part of thin lines
+    // Check if they're adjacent which would suggest it's part of a thin line end
+    for (let i = 0; i < neighborhood.length; i++) {
+      if (neighborhood[i] === 1 && neighborhood[(i + 1) % 8] === 1) {
+        return PointType.ENDPOINT;
+      }
+    }
   }
   
   // Enhanced corner detection (L-junction)
@@ -115,6 +126,7 @@ function getNeighborhood(imageData: ImageData, x: number, y: number): number[] {
 
 /**
  * Detects corner points and other junctions in a binary image using advanced pattern recognition.
+ * Enhanced to better preserve endpoint detection.
  * 
  * @param imageData - Skeletonized binary image
  * @param options - Detection options
@@ -126,6 +138,7 @@ export function detectCorners(
 ): Point[] {
   const { width, height, data } = imageData;
   const corners: Point[] = [];
+  const endpointMap = new Map<string, Point>(); // Track endpoints by position
   
   // Default parameter values
   const minNeighbors = options.minNeighbors ?? 1; // Lower this to catch more points
@@ -151,6 +164,20 @@ export function detectCorners(
       
       // Count foreground neighbors
       const neighborCount = neighborhood.reduce((sum, val) => sum + val, 0);
+      
+      // For endpoints, we're more lenient with minimum neighbors
+      const pointType = classifyJunctionType(neighborhood);
+      
+      // Special handling for endpoints
+      if (pointType === PointType.ENDPOINT) {
+        if (includeTypes.includes(PointType.ENDPOINT)) {
+          const key = `${x},${y}`;
+          endpointMap.set(key, { x, y, type: PointType.ENDPOINT });
+        }
+        continue; // Skip other checks for endpoints
+      }
+      
+      // For non-endpoints, apply standard filtering
       if (neighborCount < minNeighbors) continue;
       
       // Count transitions
@@ -162,9 +189,6 @@ export function detectCorners(
       }
       if (transitions < minTransitions) continue;
       
-      // Classify the junction type
-      const pointType = classifyJunctionType(neighborhood);
-      
       // Add point if it's of a requested type
       if (includeTypes.includes(pointType)) {
         corners.push({ x, y, type: pointType });
@@ -172,7 +196,10 @@ export function detectCorners(
     }
   }
   
-  console.log(`[DEBUG] Detected ${corners.length} corner candidates`);
+  // Add all detected endpoints to the corners array
+  corners.push(...endpointMap.values());
+  
+  console.log(`[DEBUG] Detected ${corners.length} corner candidates (including endpoints: ${endpointMap.size})`);
   return corners;
 }
 
@@ -206,6 +233,11 @@ export function clusterPoints(
         pointsByType[type] = [];
       }
       pointsByType[type].push(point);
+    }
+    
+    // Ensure there's a specific group for endpoints to prevent merging with other types
+    if (!pointsByType[PointType.ENDPOINT]) {
+      pointsByType[PointType.ENDPOINT] = [];
     }
   } else {
     // Just one group with all points
@@ -293,7 +325,21 @@ export function clusterPoints(
     allClusters.push(...typeClusters);
   }
   
+  // Count point types for logging
+  const typeCounts: Record<string, number> = {};
+  for (const point of allClusters) {
+    const type = point.type || PointType.UNCLASSIFIED;
+    typeCounts[type] = (typeCounts[type] || 0) + 1;
+  }
+  
   console.log(`[DEBUG] Clustered into ${allClusters.length} points`);
+  console.log(`[DEBUG] Point types after clustering:`);
+  console.log(`Endpoints: ${typeCounts[PointType.ENDPOINT] || 0}`);
+  console.log(`T-Junctions: ${typeCounts[PointType.T_JUNCTION] || 0}`);
+  console.log(`Corners: ${typeCounts[PointType.CORNER] || 0}`);
+  console.log(`Intersections: ${typeCounts[PointType.INTERSECTION] || 0}`);
+  console.log(`Unclassified: ${typeCounts[PointType.UNCLASSIFIED] || 0}`);
+  
   return allClusters;
 }
 
