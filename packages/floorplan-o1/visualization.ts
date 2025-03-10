@@ -30,7 +30,22 @@ function drawPoint(
   size: number = 3,
   color: [number, number, number] = [255, 0, 0]
 ): void {
-  const halfSize = Math.floor(size / 2);
+  // Adjust size only for junctions and intersections
+  let adjustedSize = size;
+  if (point.type) {
+    switch (point.type) {
+      case PointType.T_JUNCTION:
+      case PointType.INTERSECTION:
+        adjustedSize = Math.max(size * 3, 9); // 3x larger, minimum 9 pixels
+        break;
+      case PointType.ENDPOINT:
+        adjustedSize = Math.max(size * 2, 6); // 2x larger for endpoints
+        break;
+      // Corners remain at normal size
+    }
+  }
+
+  const halfSize = Math.floor(adjustedSize / 2);
   for (let dy = -halfSize; dy <= halfSize; dy++) {
     for (let dx = -halfSize; dx <= halfSize; dx++) {
       // Make the center brighter
@@ -88,13 +103,13 @@ function drawLine(
 function getPointTypeColor(pointType?: PointType): [number, number, number] {
   switch (pointType) {
     case PointType.CORNER:
-      return [255, 0, 0]; // Red for corners (L junctions)
+      return [255, 0, 0]; // Red for corners
     case PointType.T_JUNCTION:
-      return [0, 255, 0]; // Green for T junctions
+      return [255, 255, 0]; // Yellow for T junctions
     case PointType.ENDPOINT:
-      return [0, 0, 255]; // Blue for endpoints
+      return [173, 216, 230]; // Light blue for endpoints
     case PointType.INTERSECTION:
-      return [255, 0, 255]; // Purple for intersections
+      return [255, 255, 0]; // Yellow for intersections
     case PointType.UNCLASSIFIED:
     default:
       return [255, 165, 0]; // Orange for unclassified/unknown
