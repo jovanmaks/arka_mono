@@ -28,18 +28,21 @@ function drawPoint(
   imageData: ImageData,
   point: Point,
   size: number = 3,
-  color: [number, number, number] = [255, 0, 0]
+  color: [number, number, number] = [255, 0, 0],
+  respectSize: boolean = true
 ): void {
-  // Adjust size only for junctions and intersections
+  // Only adjust size if respectSize is true, otherwise use the provided size
   let adjustedSize = size;
-  if (point.type) {
+  
+  // Apply type-based size adjustment only when respectSize is true
+  if (respectSize && point.type) {
     switch (point.type) {
       case PointType.T_JUNCTION:
       case PointType.INTERSECTION:
-        adjustedSize = Math.max(size * 3, 9); // 3x larger, minimum 9 pixels
+        adjustedSize = Math.max(size * 2, 6); // Reduced from 3x to 2x
         break;
       case PointType.ENDPOINT:
-        adjustedSize = Math.max(size * 2, 6); // 2x larger for endpoints
+        adjustedSize = Math.max(size * 1.5, 4); // Reduced from 2x to 1.5x
         break;
       // Corners remain at normal size
     }
@@ -160,10 +163,11 @@ export function drawCorners(
     imageData : 
     new ImageData(new Uint8ClampedArray(imageData.data), imageData.width, imageData.height);
   
-  // Draw each corner point
+  // Draw each corner point with consistent size
   for (const corner of corners) {
     const color: [number, number, number] = getPointTypeColor(corner.type);
-    drawPoint(result, corner, 3, color);
+    // Using fixed size=3 and respectSize=true for corners
+    drawPoint(result, corner, 3, color, true);
   }
   
   return result;
@@ -194,9 +198,8 @@ export function drawClusteredPoints(
     // Get color based on point type
     const color = getPointTypeColor(point.type);
     
-    // Draw a larger point for clusters to make them stand out
-    const size = point.count ? Math.min(5 + Math.floor(point.count / 3), 10) : 5;
-    drawPoint(result, point, size, color);
+    // Keep size consistent at 3 pixels, disable the type-based size adjustment
+    drawPoint(result, point, 3, color, false);
     
     if (showLabels && point.type) {
       drawLabel(result, point.x + 6, point.y - 6, point.type);
@@ -275,7 +278,7 @@ export function visualizeFeatures(
   if (features.intersections) {
     // Draw intersections
     for (const point of features.intersections) {
-      drawPoint(result, point, 3, getPointTypeColor(PointType.INTERSECTION));
+      drawPoint(result, point, 3, getPointTypeColor(PointType.INTERSECTION), true);
     }
   }
   
@@ -291,22 +294,22 @@ export function visualizeFeatures(
   // Draw colored squares for each point type
   if (features.clusters && features.clusters.length > 0) {
     // Corner (L-junction)
-    drawPoint(result, {x: legendX, y: legendY}, 5, getPointTypeColor(PointType.CORNER));
+    drawPoint(result, {x: legendX, y: legendY}, 5, getPointTypeColor(PointType.CORNER), true);
     drawLabel(result, legendX + 10, legendY, "Corner (L)", [255, 255, 255]);
     legendY += legendSpacing;
     
     // T-junction
-    drawPoint(result, {x: legendX, y: legendY}, 5, getPointTypeColor(PointType.T_JUNCTION));
+    drawPoint(result, {x: legendX, y: legendY}, 5, getPointTypeColor(PointType.T_JUNCTION), true);
     drawLabel(result, legendX + 10, legendY, "T-Junction", [255, 255, 255]);
     legendY += legendSpacing;
     
     // Endpoint
-    drawPoint(result, {x: legendX, y: legendY}, 5, getPointTypeColor(PointType.ENDPOINT));
+    drawPoint(result, {x: legendX, y: legendY}, 5, getPointTypeColor(PointType.ENDPOINT), true);
     drawLabel(result, legendX + 10, legendY, "Endpoint", [255, 255, 255]);
     legendY += legendSpacing;
     
     // Intersection
-    drawPoint(result, {x: legendX, y: legendY}, 5, getPointTypeColor(PointType.INTERSECTION));
+    drawPoint(result, {x: legendX, y: legendY}, 5, getPointTypeColor(PointType.INTERSECTION), true);
     drawLabel(result, legendX + 10, legendY, "Intersection", [255, 255, 255]);
   }
   
