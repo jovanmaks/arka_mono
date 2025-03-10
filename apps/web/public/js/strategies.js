@@ -221,6 +221,30 @@ export function createFloorplanStrategies({
         updateStatus('TypeScript processing complete!', statusContainer);
         updateResultsStatus('TypeScript processing complete!', resultsStatusContainer);
         
+        // Show result details with additional point type counts
+        const pointTypes = clusteredPoints.reduce((counts, point) => {
+          counts[point.type || 'unclassified'] = (counts[point.type || 'unclassified'] || 0) + 1;
+          return counts;
+        }, {});
+
+        // Add the canvas to the result container
+        tsResultContainer.innerHTML = `
+          <div>
+            <h3>TypeScript Implementation Results:</h3>
+            <p>
+              <ul>
+                <li>Detected ${corners.length} corners</li>
+                <li>Clustered into ${clusteredPoints.length} points</li>
+                <li>Found ${lines.length} lines</li>
+                <li>Endpoints: ${pointTypes['endpoint'] || 0}</li>
+                <li>T-Junctions: ${pointTypes['t_junction'] || 0}</li>
+                <li>Corners: ${pointTypes['corner'] || 0}</li>
+                <li>Intersections: ${pointTypes['intersection'] || 0}</li>
+              </ul>
+            </p>
+          </div>
+        `;
+        
         // Show result details
         showTSResults(corners, clusteredPoints, lines, tsResultContainer);
         
@@ -270,6 +294,7 @@ export function createFloorplanStrategies({
           let clusteredPoints = [];
           let lines = [];
           let lineIntersections = [];
+          let lineEndpoints = []; // Added to store line endpoints
           let processedImage = null;
           
           // Create a canvas for the O(1) results
@@ -360,14 +385,24 @@ export function createFloorplanStrategies({
             // Find intersections of lines
             lineIntersections = findIntersections(lines);
             updateResultsStatus(`Found ${lineIntersections.length} line intersections.`, resultsStatusContainer);
+            
+            // Extract endpoints from lines
+            if (lines.length > 0) {
+              // Extract endpoints from each line
+              for (const line of lines) {
+                lineEndpoints.push({ x: line.x1, y: line.y1, type: 'endpoint' });
+                lineEndpoints.push({ x: line.x2, y: line.y2, type: 'endpoint' });
+              }
+              updateResultsStatus(`Extracted ${lineEndpoints.length} line endpoints.`, resultsStatusContainer);
+            }
           }
           
           // 4. Cluster points if option is checked
-          if (doCluster && (corners.length > 0 || lineIntersections.length > 0)) {
+          if (doCluster && (corners.length > 0 || lineIntersections.length > 0 || lineEndpoints.length > 0)) {
             updateResultsStatus('Clustering points with O(1) algorithm...', resultsStatusContainer);
             
-            // Combine corners and line intersections for clustering
-            const pointsToCluster = [...corners, ...lineIntersections];
+            // Combine corners, line intersections, and endpoints for clustering
+            const pointsToCluster = [...corners, ...lineIntersections, ...lineEndpoints];
             
             // Use user-specified cluster count
             clusteredPoints = clusterPoints2(pointsToCluster, options.clusters);
@@ -385,14 +420,28 @@ export function createFloorplanStrategies({
           ts2ResultContainer.innerHTML = '<h3>O(1) TypeScript Implementation Results:</h3>';
           ts2ResultContainer.appendChild(o1Canvas);
           
-          // Add debug and results info
+          // Add debug and results info with point type counts
+          const pointTypes = clusteredPoints.reduce((counts, point) => {
+            counts[point.type || 'unclassified'] = (counts[point.type || 'unclassified'] || 0) + 1;
+            return counts;
+          }, {});
+
           const resultsInfo = document.createElement('div');
           resultsInfo.innerHTML = `<p>
             <ul>
               <li>Detected ${corners.length} corners</li>
               <li>Found ${lines.length} line segments</li>
               <li>Found ${lineIntersections.length} line intersections</li>
+              <li>Extracted ${lineEndpoints.length} line endpoints</li>
               <li>Clustered into ${clusteredPoints.length} points</li>
+              <li>Point types after clustering:</li>
+              <ul>
+                <li>Endpoints: ${pointTypes['endpoint'] || 0}</li>
+                <li>T-Junctions: ${pointTypes['t_junction'] || 0}</li>
+                <li>Corners: ${pointTypes['corner'] || 0}</li>
+                <li>Intersections: ${pointTypes['intersection'] || 0}</li>
+                <li>Unclassified: ${pointTypes['unclassified'] || 0}</li>
+              </ul>
             </ul>
           </p>
           <p>
@@ -428,6 +477,7 @@ export function createFloorplanStrategies({
             corners,
             lines,
             lineIntersections,
+            lineEndpoints,
             clusteredPoints
           };
         } catch (err) {
