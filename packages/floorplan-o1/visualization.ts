@@ -108,11 +108,11 @@ function getPointTypeColor(pointType?: PointType): [number, number, number] {
     case PointType.CORNER:
       return [255, 0, 0]; // Red for corners
     case PointType.T_JUNCTION:
-      return [255, 255, 0]; // Yellow for T junctions
+      return [0, 255, 0]; // Green for T junctions
     case PointType.ENDPOINT:
       return [173, 216, 230]; // Light blue for endpoints
     case PointType.INTERSECTION:
-      return [255, 255, 0]; // Yellow for intersections
+      return [255, 0, 255]; // Magenta for intersections
     case PointType.UNCLASSIFIED:
     default:
       return [255, 165, 0]; // Orange for unclassified/unknown
