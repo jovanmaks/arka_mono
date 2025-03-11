@@ -41,7 +41,7 @@ export function classifyJunctionType(neighborhood: number[]): PointType {
     }
   }
   
-  // Enhanced corner detection (L-junction)
+  // Enhanced corner detection (L-junction) - MORE RESTRICTIVE
   if (neighbors === 2) {
     if (transitions === 2) {
       // Check if the two branches are adjacent for a real corner
@@ -51,19 +51,44 @@ export function classifyJunctionType(neighborhood: number[]): PointType {
           return PointType.UNCLASSIFIED; // Adjacent branches indicate a potential line segment
         }
       }
+      
       // Two non-adjacent branches with transition count 2 is a corner
-      return PointType.CORNER;
+      // Only check specific L-corner patterns (90-degree angles)
+      const exactCornerPatterns = [
+        [1, 0, 0, 0, 0, 1, 0, 0], // ┌ pattern (North-East)
+        [0, 1, 0, 0, 0, 0, 1, 0], // ┐ pattern (East-South)
+        [0, 0, 1, 0, 0, 0, 0, 1], // └ pattern (South-West)
+        [0, 0, 0, 1, 1, 0, 0, 0]  // ┘ pattern (West-North)
+      ];
+      
+      // Check if the neighborhood matches any of these exact patterns
+      const matchesExactPattern = exactCornerPatterns.some(pattern => {
+        for (let i = 0; i < 8; i++) {
+          if (pattern[i] !== neighborhood[i]) {
+            return false;
+          }
+        }
+        return true;
+      });
+      
+      if (matchesExactPattern) {
+        return PointType.CORNER;
+      }
+      
+      return PointType.UNCLASSIFIED; // Not a recognized corner pattern
     }
     
-    // Check for additional corner patterns
-    // Look for two branches that are approximately 90° apart
+    // Check for specific corner patterns - STRICT MATCHING
+    // Look for two branches that are exactly 90° apart
     const cornerPatterns = [
-      '10000100', // ┌ pattern
-      '01000010', // ┐ pattern  
-      '00100001', // └ pattern
-      '00010001'  // ┘ pattern
+      '10000100', // ┌ pattern (North-East)
+      '01000010', // ┐ pattern (East-South)
+      '00100001', // └ pattern (South-West)
+      '00010001'  // ┘ pattern (West-North)
     ];
-    if (cornerPatterns.some(p => patternString.includes(p))) {
+    
+    // Only exact matches, not substring matches
+    if (cornerPatterns.includes(neighborhood.join(''))) {
       return PointType.CORNER;
     }
   }

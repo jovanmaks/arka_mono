@@ -106,7 +106,7 @@ function drawLine(
 function getPointTypeColor(pointType?: PointType): [number, number, number] {
   switch (pointType) {
     case PointType.CORNER:
-      return [255, 0, 0]; // Red for corners
+      return [0, 0, 139]; // Dark blue for L-corners (was [255, 0, 0])
     case PointType.T_JUNCTION:
       return [0, 255, 0]; // Green for T junctions
     case PointType.ENDPOINT:
