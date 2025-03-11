@@ -230,7 +230,7 @@ export function detectCorners(
 
 /**
  * Clusters nearby points into a single point using distance-based clustering.
- * Enhanced version with type-aware clustering to improve junction detection.
+ * Enhanced version with aggressive merging to handle noise in the floorplan.
  * 
  * @param points - Array of points {x, y, type}
  * @param options - Clustering options
@@ -242,122 +242,198 @@ export function clusterPoints(
 ): Point[] {
   if (points.length === 0) return [];
 
-  const maxDistance = options.maxDistance ?? 10;
-  const distanceThreshold = options.distanceThreshold ?? 30; // Max distance threshold
-  const minClusterSize = options.minClusterSize ?? 1; // Default to 1 to keep all clusters
-  const preserveTypes = options.preserveTypes ?? true; // Whether to prioritize junction types
+  // Configuration parameters with more aggressive defaults
+  const maxDistance = options.maxDistance ?? 20;  // Increased from 10
+  const distanceThreshold = options.distanceThreshold ?? 30; 
+  const minClusterSize = options.minClusterSize ?? 1;
+  const preserveTypes = options.preserveTypes ?? false; // Force false to ensure merging different types
+
+  console.log(`[DEBUG] Clustering with maxDistance=${maxDistance}, preserveTypes=${preserveTypes}`);
   
-  // Group points by type first if preserveTypes is enabled
-  const pointsByType: Record<string, Point[]> = {};
+  // STEP 1: First pass - aggressively merge very close points regardless of type
+  // This handles the case where we have multiple points very close to each other
+  // representing the same physical corner but classified as different junction types
+  const tightRadius = Math.max(8, maxDistance / 2); // Increased from 5 to 8
+  
+  console.log(`[DEBUG] Initial tight clustering with radius=${tightRadius}`);
+  
+  // Build a distance matrix for quick lookup
+  const distMatrix: number[][] = [];
+  for (let i = 0; i < points.length; i++) {
+    distMatrix[i] = [];
+    for (let j = 0; j < points.length; j++) {
+      const dx = points[i].x - points[j].x;
+      const dy = points[i].y - points[j].y;
+      distMatrix[i][j] = Math.sqrt(dx*dx + dy*dy);
+    }
+  }
+  
+  // Initial clustering - assign each point to a cluster
+  const initialClusters: number[][] = [];
+  const assignedPoints = new Set<number>();
+  
+  for (let i = 0; i < points.length; i++) {
+    if (assignedPoints.has(i)) continue;
+    
+    const cluster: number[] = [i];
+    assignedPoints.add(i);
+    
+    for (let j = 0; j < points.length; j++) {
+      if (i === j || assignedPoints.has(j)) continue;
+      
+      if (distMatrix[i][j] <= tightRadius) {
+        cluster.push(j);
+        assignedPoints.add(j);
+      }
+    }
+    
+    initialClusters.push(cluster);
+  }
+  
+  console.log(`[DEBUG] Initial clustering: ${initialClusters.length} clusters from ${points.length} points`);
+  
+  // STEP 2: Second pass - merge the initial clusters if they're close enough
+  // Only apply type-based preservation if explicitly requested
+  let finalClusters: (Point[] | null)[] = [];
   
   if (preserveTypes) {
-    // Group by type
-    for (const point of points) {
-      const type = point.type || PointType.UNCLASSIFIED;
-      if (!pointsByType[type]) {
-        pointsByType[type] = [];
+    // Group initial clusters by type first
+    const pointsByType: Record<string, Point[]> = {};
+    
+    for (const cluster of initialClusters) {
+      // Determine the dominant type in this cluster
+      const typeCounts: Record<string, number> = {};
+      
+      for (const idx of cluster) {
+        const pointType = points[idx].type || PointType.UNCLASSIFIED;
+        typeCounts[pointType] = (typeCounts[pointType] || 0) + 1;
       }
-      pointsByType[type].push(point);
+      
+      // Find the most frequent type
+      let dominantType = PointType.UNCLASSIFIED;
+      let maxCount = 0;
+      for (const type in typeCounts) {
+        if (typeCounts[type] > maxCount) {
+          maxCount = typeCounts[type];
+          dominantType = type as PointType;
+        }
+      }
+      
+      // Create the point cluster with the average position
+      const clusterPoints = cluster.map(idx => points[idx]);
+      
+      if (!pointsByType[dominantType]) {
+        pointsByType[dominantType] = [];
+      }
+      pointsByType[dominantType].push(...clusterPoints);
     }
     
-    // Ensure there's a specific group for endpoints to prevent merging with other types
-    if (!pointsByType[PointType.ENDPOINT]) {
-      pointsByType[PointType.ENDPOINT] = [];
+    // Process each type separately
+    for (const type in pointsByType) {
+      const typePoints = pointsByType[type];
+      
+      // Create clusters for this type
+      finalClusters.push(...typePoints.map(p => [p]));
     }
   } else {
-    // Just one group with all points
-    pointsByType['all'] = points;
+    // Don't preserve types - just create clusters from the initial groupings
+    finalClusters = initialClusters.map(cluster => cluster.map(idx => points[idx]));
   }
   
-  // Process each type group separately
-  const allClusters: Point[] = [];
+  // STEP 3: Merge clusters based on distance - iterative process
+  let mergeOccurred = true;
+  let iterationCount = 0;
+  const maxIterations = 10; // Prevent infinite loops
   
-  for (const type in pointsByType) {
-    const typePoints = pointsByType[type];
+  while (mergeOccurred && iterationCount < maxIterations) {
+    mergeOccurred = false;
+    iterationCount++;
     
-    // Create clusters initially containing one point each
-    let clusters: (Point[] | null)[] = typePoints.map(point => [point]);
-    let mergeOccurred = true;
-    
-    // Iteratively merge clusters until no more merges occur
-    while (mergeOccurred) {
-      mergeOccurred = false;
+    for (let i = 0; i < finalClusters.length; i++) {
+      if (!finalClusters[i]) continue; // Skip already merged clusters
       
-      for (let i = 0; i < clusters.length; i++) {
-        if (!clusters[i]) continue; // Skip already merged clusters
+      for (let j = i + 1; j < finalClusters.length; j++) {
+        if (!finalClusters[j]) continue; // Skip already merged clusters
         
-        for (let j = i + 1; j < clusters.length; j++) {
-          if (!clusters[j]) continue; // Skip already merged clusters
-          
-          // Check distance between clusters
-          const canMerge = clusters[i]!.some(p1 => 
-            clusters[j]!.some(p2 => {
-              const dx = p1.x - p2.x;
-              const dy = p1.y - p2.y;
-              const dist = Math.sqrt(dx*dx + dy*dy);
-              // Only merge if within the merge distance threshold
-              return dist <= maxDistance;
-            })
-          );
-          
-          // Merge clusters if they're close enough
-          if (canMerge) {
-            clusters[i] = clusters[i]!.concat(clusters[j]!);
-            clusters[j] = null; // Mark as merged
-            mergeOccurred = true;
-          }
+        // Check if any points in the clusters are close enough to merge
+        const canMerge = finalClusters[i]!.some(p1 => 
+          finalClusters[j]!.some(p2 => {
+            const dx = p1.x - p2.x;
+            const dy = p1.y - p2.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            return dist <= maxDistance;
+          })
+        );
+        
+        // Merge clusters if they're close enough
+        if (canMerge) {
+          finalClusters[i] = finalClusters[i]!.concat(finalClusters[j]!);
+          finalClusters[j] = null; // Mark as merged
+          mergeOccurred = true;
         }
-      }
-      
-      // Filter out null clusters
-      if (mergeOccurred) {
-        clusters = clusters.filter(cluster => cluster !== null);
       }
     }
     
-    // Calculate centroids (averages) for each cluster
-    const typeClusters = clusters
-      .filter(cluster => cluster!.length >= minClusterSize)
-      .map(cluster => {
-        const sumX = cluster!.reduce((sum, p) => sum + p.x, 0);
-        const sumY = cluster!.reduce((sum, p) => sum + p.y, 0);
-        
-        // Determine the most common point type in this cluster
-        const typeCounts: Record<string, number> = {};
-        for (const point of cluster!) {
-          const pointType = point.type || PointType.UNCLASSIFIED;
-          typeCounts[pointType] = (typeCounts[pointType] || 0) + 1;
-        }
-        
-        // Find the most frequent type
-        let mostCommonType = PointType.UNCLASSIFIED;
-        let maxCount = 0;
-        for (const type in typeCounts) {
-          if (typeCounts[type] > maxCount) {
-            maxCount = typeCounts[type];
-            mostCommonType = type as PointType;
-          }
-        }
-        
-        return {
-          x: Math.round(sumX / cluster!.length),
-          y: Math.round(sumY / cluster!.length),
-          type: mostCommonType as PointType,
-          count: cluster!.length  // Keep track of cluster size
-        };
-      });
-    
-    allClusters.push(...typeClusters);
+    // Filter out null clusters
+    if (mergeOccurred) {
+      finalClusters = finalClusters.filter(cluster => cluster !== null);
+      console.log(`[DEBUG] Clustering iteration ${iterationCount}: ${finalClusters.length} clusters remaining`);
+    }
   }
   
-  // Count point types for logging
+  // STEP 4: Calculate centroids for each cluster
+  const resultClusters = finalClusters
+    .filter(cluster => cluster!.length >= minClusterSize)
+    .map(cluster => {
+      const sumX = cluster!.reduce((sum, p) => sum + p.x, 0);
+      const sumY = cluster!.reduce((sum, p) => sum + p.y, 0);
+      
+      // Determine type priority
+      // T-junctions and intersections are more important than corners,
+      // which are more important than endpoints for wall reconstruction
+      const typePriority: Record<string, number> = {
+        [PointType.INTERSECTION]: 4,
+        [PointType.T_JUNCTION]: 3,
+        [PointType.CORNER]: 2,
+        [PointType.ENDPOINT]: 1,
+        [PointType.UNCLASSIFIED]: 0
+      };
+      
+      // Count point types and select by priority
+      const typeCounts: Record<string, number> = {};
+      for (const point of cluster!) {
+        const pointType = point.type || PointType.UNCLASSIFIED;
+        typeCounts[pointType] = (typeCounts[pointType] || 0) + 1;
+      }
+      
+      // Find highest priority type that appears at least once
+      let bestType = PointType.UNCLASSIFIED;
+      let highestPriority = -1;
+      
+      for (const type in typeCounts) {
+        const priority = typePriority[type] || 0;
+        if (priority > highestPriority && typeCounts[type] > 0) {
+          highestPriority = priority;
+          bestType = type as PointType;
+        }
+      }
+      
+      return {
+        x: Math.round(sumX / cluster!.length),
+        y: Math.round(sumY / cluster!.length),
+        type: bestType,
+        count: cluster!.length  // Keep track of cluster size
+      };
+    });
+  
+  // Log cluster results  
   const typeCounts: Record<string, number> = {};
-  for (const point of allClusters) {
+  for (const point of resultClusters) {
     const type = point.type || PointType.UNCLASSIFIED;
     typeCounts[type] = (typeCounts[type] || 0) + 1;
   }
   
-  console.log(`[DEBUG] Clustered into ${allClusters.length} points`);
+  console.log(`[DEBUG] Final result: Clustered ${points.length} points into ${resultClusters.length} points`);
   console.log(`[DEBUG] Point types after clustering:`);
   console.log(`Endpoints: ${typeCounts[PointType.ENDPOINT] || 0}`);
   console.log(`T-Junctions: ${typeCounts[PointType.T_JUNCTION] || 0}`);
@@ -365,15 +441,7 @@ export function clusterPoints(
   console.log(`Intersections: ${typeCounts[PointType.INTERSECTION] || 0}`);
   console.log(`Unclassified: ${typeCounts[PointType.UNCLASSIFIED] || 0}`);
   
-  // Log detailed point type statistics
-  console.log('[DEBUG] Point types after clustering:');
-  console.log(`L-Corners: ${typeCounts[PointType.CORNER] || 0}`);
-  console.log(`T-Junctions: ${typeCounts[PointType.T_JUNCTION] || 0}`);
-  console.log(`X-Intersections: ${typeCounts[PointType.INTERSECTION] || 0}`);
-  console.log(`Endpoints: ${typeCounts[PointType.ENDPOINT] || 0}`);
-  console.log(`Unclassified: ${typeCounts[PointType.UNCLASSIFIED] || 0}`);
-  
-  return allClusters;
+  return resultClusters;
 }
 
 /**

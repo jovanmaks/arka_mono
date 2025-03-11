@@ -350,24 +350,26 @@ export function createFloorplanStrategies({
             };
           }
           
+          // Store a clean copy of the skeletonized image for later
+          const cleanSkeleton = new ImageData(
+            new Uint8ClampedArray(processedImage.skeleton.data),
+            processedImage.skeleton.width,
+            processedImage.skeleton.height
+          );
+          
           // 2. Detect corners if option is checked
           if (doCorners && processedImage) {
             updateResultsStatus('Detecting corners with O(1) algorithm...', resultsStatusContainer);
             
             // Use more sensitive parameters for corner detection
             const cornerOptions = {
-              minNeighbors: 2,       // Lower threshold from default 3
-              minTransitions: 1,     // Lower threshold from default 2
+              minNeighbors: 2,     // Lower threshold from default 3
+              minTransitions: 1,   // Lower threshold from default 2
             };
             
             corners = detectCorners2(processedImage.skeleton, cornerOptions);
             
-            // Draw the corners on the canvas
-            if (corners.length > 0) {
-              const imageWithCorners = drawCorners2(processedImage.skeleton, corners, true);
-              renderImageDataToCanvas2(imageWithCorners, o1Canvas);
-            }
-            
+            // DO NOT draw corners here - we'll only draw clustered points later
             updateResultsStatus(`Found ${corners.length} corners with O(1) algorithm.`, resultsStatusContainer);
           }
           
@@ -392,13 +394,7 @@ export function createFloorplanStrategies({
               updateResultsStatus(`Created ${lines.length} lines by connecting junctions.`, resultsStatusContainer);
               
               // If we have enough lines, we'll use those results
-              if (lines.length >= 3) {
-                // Draw the lines on the canvas
-                if (lines.length > 0) {
-                  const imageWithLines = drawLines2(processedImage.skeleton, lines, true);
-                  renderImageDataToCanvas2(imageWithLines, o1Canvas);
-                }
-              } else {
+              if (lines.length < 3) {
                 // Fallback to the original Hough transform method
                 updateResultsStatus('Not enough lines found with junction method, falling back to Hough transform...', resultsStatusContainer);
                 
@@ -413,12 +409,6 @@ export function createFloorplanStrategies({
                   8    // maxLineGap
                 );
                 
-                // Draw the lines on the canvas
-                if (lines.length > 0) {
-                  const imageWithLines = drawLines2(processedImage.skeleton, lines, true);
-                  renderImageDataToCanvas2(imageWithLines, o1Canvas);
-                }
-                
                 updateResultsStatus(`Detected ${lines.length} lines with Hough transform.`, resultsStatusContainer);
               }
             } else {
@@ -432,12 +422,6 @@ export function createFloorplanStrategies({
                 30,  // minLineLength
                 8    // maxLineGap
               );
-              
-              // Draw the lines on the canvas
-              if (lines.length > 0) {
-                const imageWithLines = drawLines2(processedImage.skeleton, lines, true);
-                renderImageDataToCanvas2(imageWithLines, o1Canvas);
-              }
               
               updateResultsStatus(`Detected ${lines.length} lines with Hough transform.`, resultsStatusContainer);
             }
@@ -464,16 +448,43 @@ export function createFloorplanStrategies({
             // Combine corners, line intersections, and endpoints for clustering
             const pointsToCluster = [...corners, ...lineIntersections, ...lineEndpoints];
             
-            // Use user-specified cluster count
-            clusteredPoints = clusterPoints2(pointsToCluster, options.clusters);
+            // Use more aggressive clustering parameters
+            const clusterOptions = {
+              maxDistance: 20,         // Increased clustering distance
+              preserveTypes: false,     // Don't preserve types to ensure merging
+              distanceThreshold: 30,   // Maximum distance threshold for points in a cluster
+            };
+
+            console.log(`Clustering ${pointsToCluster.length} points with maxDistance=${clusterOptions.maxDistance}`);
             
-            // Draw the clustered points on the canvas
-            if (clusteredPoints.length > 0) {
-              const imageWithClusters = drawClusteredPoints2(processedImage.skeleton, clusteredPoints, true);
-              renderImageDataToCanvas2(imageWithClusters, o1Canvas);
+            // Use user-specified cluster count with our custom options
+            clusteredPoints = clusterPoints2(pointsToCluster, clusterOptions);
+            
+            console.log(`Clustered ${pointsToCluster.length} points into ${clusteredPoints.length} points`);
+            
+            // IMPORTANT: Start with clean skeleton image before drawing
+            processedImage.skeleton = cleanSkeleton;
+            
+            // First draw lines if we have them
+            if (lines.length > 0) {
+              processedImage.skeleton = drawLines2(processedImage.skeleton, lines, true);
             }
             
+            // Then draw clustered points on top
+            if (clusteredPoints.length > 0) {
+              processedImage.skeleton = drawClusteredPoints2(processedImage.skeleton, clusteredPoints, true);
+            }
+            
+            // Render the final image with lines and clustered points to canvas
+            renderImageDataToCanvas2(processedImage.skeleton, o1Canvas);
+            
             updateResultsStatus(`Clustered into ${clusteredPoints.length} points with O(1) algorithm.`, resultsStatusContainer);
+          } else {
+            // If not clustering, still draw lines if we have them
+            if (lines.length > 0) {
+              processedImage.skeleton = drawLines2(processedImage.skeleton, lines, true);
+              renderImageDataToCanvas2(processedImage.skeleton, o1Canvas);
+            }
           }
           
           // Add the canvas to the result container

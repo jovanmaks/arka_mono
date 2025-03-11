@@ -27,7 +27,7 @@ function setPixelColor(
 function drawPoint(
   imageData: ImageData,
   point: Point,
-  size: number = 3,
+  size: number = 6,  // Increased default size from 3 to 6
   color: [number, number, number] = [255, 0, 0],
   respectSize: boolean = true
 ): void {
@@ -39,12 +39,15 @@ function drawPoint(
     switch (point.type) {
       case PointType.T_JUNCTION:
       case PointType.INTERSECTION:
-        adjustedSize = Math.max(size * 2, 6); // Reduced from 3x to 2x
+        adjustedSize = Math.max(size * 2, 12); // Increased from 6 to 12
         break;
       case PointType.ENDPOINT:
-        adjustedSize = Math.max(size * 1.5, 4); // Reduced from 2x to 1.5x
+        adjustedSize = Math.max(size * 1.5, 8); // Increased from 4 to 8
         break;
-      // Corners remain at normal size
+      case PointType.CORNER:
+        adjustedSize = Math.max(size * 1.5, 8); // Added specific size for corners
+        break;
+      // Other types use the default size
     }
   }
 
@@ -81,7 +84,12 @@ function drawLine(
   let y = y1;
   
   while (true) {
-    setPixelColor(imageData, x, y, r, g, b);
+    // Draw a 3x3 square for each line point to make the line thicker
+    for (let offsetY = -1; offsetY <= 1; offsetY++) {
+      for (let offsetX = -1; offsetX <= 1; offsetX++) {
+        setPixelColor(imageData, x + offsetX, y + offsetY, r, g, b);
+      }
+    }
     
     if (x === x2 && y === y2) break;
     
@@ -198,11 +206,11 @@ export function drawClusteredPoints(
     // Get color based on point type
     const color = getPointTypeColor(point.type);
     
-    // Keep size consistent at 3 pixels, disable the type-based size adjustment
-    drawPoint(result, point, 3, color, false);
+    // Use larger size of 6 pixels (doubled from original 3)
+    drawPoint(result, point, 6, color, true);  // Changed to use respectSize=true
     
     if (showLabels && point.type) {
-      drawLabel(result, point.x + 6, point.y - 6, point.type);
+      drawLabel(result, point.x + 8, point.y - 8, point.type);  // Adjusted label offset for larger points
     }
   }
   
@@ -235,7 +243,7 @@ export function drawLines(
       Math.round(y1), 
       Math.round(x2), 
       Math.round(y2),
-      [0, 255, 255] // Cyan for lines
+      [255, 69, 0] // Light brown (rgb value for tan/beige color)
     );
   }
   
@@ -278,7 +286,7 @@ export function visualizeFeatures(
   if (features.intersections) {
     // Draw intersections
     for (const point of features.intersections) {
-      drawPoint(result, point, 3, getPointTypeColor(PointType.INTERSECTION), true);
+      drawPoint(result, point, 6, getPointTypeColor(PointType.INTERSECTION), true);
     }
   }
   
@@ -289,28 +297,28 @@ export function visualizeFeatures(
   // Add a legend to help identify the colors
   const legendX = 10;
   let legendY = 10;
-  const legendSpacing = 15;
+  const legendSpacing = 20;  // Increased spacing for larger points
   
   // Draw colored squares for each point type
   if (features.clusters && features.clusters.length > 0) {
     // Corner (L-junction)
-    drawPoint(result, {x: legendX, y: legendY}, 5, getPointTypeColor(PointType.CORNER), true);
-    drawLabel(result, legendX + 10, legendY, "Corner (L)", [255, 255, 255]);
+    drawPoint(result, {x: legendX, y: legendY}, 6, getPointTypeColor(PointType.CORNER), true);
+    drawLabel(result, legendX + 12, legendY, "Corner (L)", [255, 255, 255]);
     legendY += legendSpacing;
     
     // T-junction
-    drawPoint(result, {x: legendX, y: legendY}, 5, getPointTypeColor(PointType.T_JUNCTION), true);
-    drawLabel(result, legendX + 10, legendY, "T-Junction", [255, 255, 255]);
+    drawPoint(result, {x: legendX, y: legendY}, 6, getPointTypeColor(PointType.T_JUNCTION), true);
+    drawLabel(result, legendX + 12, legendY, "T-Junction", [255, 255, 255]);
     legendY += legendSpacing;
     
     // Endpoint
-    drawPoint(result, {x: legendX, y: legendY}, 5, getPointTypeColor(PointType.ENDPOINT), true);
-    drawLabel(result, legendX + 10, legendY, "Endpoint", [255, 255, 255]);
+    drawPoint(result, {x: legendX, y: legendY}, 6, getPointTypeColor(PointType.ENDPOINT), true);
+    drawLabel(result, legendX + 12, legendY, "Endpoint", [255, 255, 255]);
     legendY += legendSpacing;
     
     // Intersection
-    drawPoint(result, {x: legendX, y: legendY}, 5, getPointTypeColor(PointType.INTERSECTION), true);
-    drawLabel(result, legendX + 10, legendY, "Intersection", [255, 255, 255]);
+    drawPoint(result, {x: legendX, y: legendY}, 6, getPointTypeColor(PointType.INTERSECTION), true);
+    drawLabel(result, legendX + 12, legendY, "Intersection", [255, 255, 255]);
   }
   
   return result;
