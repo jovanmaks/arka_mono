@@ -167,6 +167,7 @@
           <button id="scanButton" disabled>Scan (API)</button>
           <button id="scanTsButton" disabled>Scan (Sonnet)</button>
           <button id="scanTs2Button" disabled>Scan (O1)</button>
+          <button id="scanAiButton" disabled>Scan (AI)</button>
         </div>
         
         <!-- Input fields with sliders -->
@@ -218,6 +219,25 @@
             </label>
           </div>
         </div>
+
+        <!-- Processing options (checkboxes) for AI implementation -->
+        <div class="process-options">
+          <h4>AI Processing Options:</h4>
+          <div class="checkbox-group">
+            <label>
+              <input type="checkbox" id="aiSkeletonizeCheck" checked /> Skeletonize
+            </label>
+            <label>
+              <input type="checkbox" id="aiCornersCheck" /> Detect Corners
+            </label>
+            <label>
+              <input type="checkbox" id="aiClusterCheck" /> Cluster Points
+            </label>
+            <label>
+              <input type="checkbox" id="aiLinesCheck" /> Detect Lines
+            </label>
+          </div>
+        </div>
         
         <div id="previewContainer"></div>
         <div id="statusContainer"></div>
@@ -231,6 +251,7 @@
         <div class="tab active" id="apiResultsTab">Python API Results</div>
         <div class="tab" id="tsResultsTab">TypeScript (Sonnet)</div>
         <div class="tab" id="ts2ResultsTab">TypeScript (O1)</div>
+        <div class="tab" id="aiResultsTab">AI Results</div>
       </div>
       
       <div class="results-display">
@@ -243,6 +264,7 @@
         <div id="apiResultContainer" class="result-container"></div>
         <div id="tsResultContainer" class="result-container" style="display: none;"></div>
         <div id="ts2ResultContainer" class="result-container" style="display: none;"></div>
+        <div id="aiResultContainer" class="result-container" style="display: none;"></div>
       </div>
       
       <!-- Status Area at the bottom of the right column -->

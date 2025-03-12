@@ -243,7 +243,7 @@ export function clusterPoints(
   if (points.length === 0) return [];
 
   // Configuration parameters with more aggressive defaults
-  const maxDistance = options.maxDistance ?? 20;  // Increased from 10
+  const maxDistance = options.maxDistance ?? 10;  // Increased from 10
   const distanceThreshold = options.distanceThreshold ?? 30; 
   const minClusterSize = options.minClusterSize ?? 1;
   const preserveTypes = options.preserveTypes ?? false; // Force false to ensure merging different types
