@@ -289,44 +289,74 @@ async function handleAiScanClick() {
         updateStatus('AI Processing complete!', statusContainer);
         updateResultsStatus('AI Processing complete!', resultsStatusContainer);
         
+        console.log('AI processing response:', data); // Debug: Log the full response
+        
         if (data.transformedImagePath) {
             // Store all visualization paths with full URLs
             aiVisualizationPaths = {};
-            for (const [key, path] of Object.entries(data.visualizationPaths)) {
-                aiVisualizationPaths[key] = `${baseUrl}/${path}`;
-            }
-
-            // Show the initial visualization (all_corners)
-            showTransformResults(aiVisualizationPaths.all_corners, aiResultContainer);
             
-            // Switch to AI results tab
-            switchTab({
-                tabName: 'ai',
-                apiResultsTab,
-                tsResultsTab,
-                ts2ResultsTab,
-                aiResultsTab,
-                apiResultContainer,
-                tsResultContainer,
-                ts2ResultContainer,
-                aiResultContainer,
-                canvasContainer,
-                annotatedURL: aiVisualizationPaths.all_corners,
-                canvas,
-                tsImageProcessed: false
-            });
-
-            // Add or update radio button change handler
-            const radioButtons = document.querySelectorAll('input[name="aiVisualization"]');
-            radioButtons.forEach(radio => {
-                // Remove any existing listeners to prevent duplicates
-                radio.removeEventListener('change', handleVisualizationChange);
-                // Add new listener
-                radio.addEventListener('change', handleVisualizationChange);
-            });
+            // Log all paths for debugging
+            console.log('Visualization paths from API:', data.visualizationPaths);
+            
+            // Create full URLs for all visualization images
+            for (const [key, path] of Object.entries(data.visualizationPaths || {})) {
+                if (path) {
+                    aiVisualizationPaths[key] = `${baseUrl}/${path}`;
+                    // Verify URL format is correct
+                    console.log(`${key} URL: ${aiVisualizationPaths[key]}`);
+                } else {
+                    console.warn(`Missing path for visualization type: ${key}`);
+                }
+            }
+            
+            // Find which visualization type to show initially
+            // Prefer all_corners, but fall back to first available
+            let initialVisualization = 'all_corners';
+            if (!aiVisualizationPaths[initialVisualization] && Object.keys(aiVisualizationPaths).length > 0) {
+                initialVisualization = Object.keys(aiVisualizationPaths)[0];
+            }
+            
+            if (aiVisualizationPaths[initialVisualization]) {
+                // Show the initial visualization
+                showTransformResults(aiVisualizationPaths[initialVisualization], aiResultContainer);
+                
+                // Switch to AI results tab
+                switchTab({
+                    tabName: 'ai',
+                    apiResultsTab,
+                    tsResultsTab,
+                    ts2ResultsTab,
+                    aiResultsTab,
+                    apiResultContainer,
+                    tsResultContainer,
+                    ts2ResultContainer,
+                    aiResultContainer,
+                    canvasContainer,
+                    annotatedURL: aiVisualizationPaths[initialVisualization],
+                    canvas,
+                    tsImageProcessed: false
+                });
+                
+                // Preselect the radio button for initial visualization
+                const radioToSelect = document.querySelector(`input[name="aiVisualization"][value="${initialVisualization}"]`);
+                if (radioToSelect) {
+                    radioToSelect.checked = true;
+                }
+                
+                // Add or update radio button change handler
+                const radioButtons = document.querySelectorAll('input[name="aiVisualization"]');
+                radioButtons.forEach(radio => {
+                    // Remove any existing listeners to prevent duplicates
+                    radio.removeEventListener('change', handleVisualizationChange);
+                    // Add new listener
+                    radio.addEventListener('change', handleVisualizationChange);
+                });
+            } else {
+                updateResultsStatus('Error: No visualization images available', resultsStatusContainer);
+            }
         }
     } catch (err) {
-        console.error(err);
+        console.error('AI processing error:', err);
         updateStatus(`Error: ${err.message}`, statusContainer);
         updateResultsStatus(`Error: ${err.message}`, resultsStatusContainer);
         aiVisualizationPaths = null;
@@ -338,9 +368,23 @@ function handleVisualizationChange(e) {
     if (aiVisualizationPaths) {
         const selectedType = e.target.value;
         const selectedPath = aiVisualizationPaths[selectedType];
+        
+        console.log(`Selected visualization: ${selectedType}, Path: ${selectedPath}`);
+        
         if (selectedPath) {
             showTransformResults(selectedPath, aiResultContainer);
+        } else {
+            console.warn(`No image path found for visualization type: ${selectedType}`);
+            // Display a message when the selected visualization is not available
+            aiResultContainer.innerHTML = `
+                <div>
+                    <h3>AI Results:</h3>
+                    <p>The selected visualization (${selectedType}) is not available for this image.</p>
+                </div>
+            `;
         }
+    } else {
+        console.warn('Visualization paths are not available');
     }
 }
 

@@ -39,14 +39,44 @@ export function showTSResults(corners, clusteredPoints, lines, tsResultContainer
 
 // Show AI Transformation results
 export function showTransformResults(imageUrl, aiResultContainer) {
+    // Clear previous content and show loading indicator
     aiResultContainer.innerHTML = `
         <div>
             <h3>AI Results:</h3>
-            <p>Successfully transformed the floorplan image.</p>
-            <img src="${imageUrl}" alt="AI Transformed Floorplan" 
-                 style="max-width: 100%; height: auto; border: 1px solid #ccc" />
+            <p>Loading visualization...</p>
         </div>
     `;
+    
+    // Create an image element to test loading
+    const img = new Image();
+    
+    // Handle image load success
+    img.onload = () => {
+        aiResultContainer.innerHTML = `
+            <div>
+                <h3>AI Results:</h3>
+                <p>Successfully transformed the floorplan image.</p>
+                <img src="${imageUrl}" alt="AI Transformed Floorplan" 
+                     style="max-width: 100%; height: auto; border: 1px solid #ccc" />
+            </div>
+        `;
+    };
+    
+    // Handle image load error
+    img.onerror = () => {
+        console.error(`Failed to load image: ${imageUrl}`);
+        aiResultContainer.innerHTML = `
+            <div>
+                <h3>AI Results:</h3>
+                <p>Error loading visualization image. Please try another option.</p>
+                <p class="error-details">Failed to load: ${imageUrl}</p>
+                <style>.error-details { color: red; font-size: 0.8em; }</style>
+            </div>
+        `;
+    };
+    
+    // Start loading the image
+    img.src = imageUrl;
 }
 
 // Handle Sonnet checkbox dependencies
