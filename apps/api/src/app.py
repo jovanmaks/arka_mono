@@ -129,7 +129,7 @@ def process_floorplan():
         corners_py = [[int(x), int(y)] for (x, y) in corners]
         clustered_pts_py = [[int(x), int(y)] for (x, y) in clustered_pts]
         lines_list_py = [
-            [int(x1), int(y1), int(x2, int(y2))]
+            [int(x1), int(y1), int(x2), int(y2)]
             for (x1, y1, x2, y2) in lines_list
         ]
 

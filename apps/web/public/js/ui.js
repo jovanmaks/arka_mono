@@ -126,6 +126,7 @@ export function switchTab({
         case 'ts2':
             ts2ResultsTab.classList.add('active');
             ts2ResultContainer.style.display = 'block';
+            canvasContainer.style.display = 'block'; // Always show canvas for O1 strategy
             break;
         case 'ai':
             aiResultsTab.classList.add('active');

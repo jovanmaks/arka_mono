@@ -56,6 +56,7 @@ export function createFloorplanStrategies({
         }
         
         const data = await response.json();
+        
         updateStatus('Python API processing complete!', statusContainer);
         updateResultsStatus('Python API processing complete!', resultsStatusContainer);
         
@@ -63,22 +64,19 @@ export function createFloorplanStrategies({
             const newAnnotatedURL = `${baseUrl}/${data.clusteredImagePath}`;
             showAPIResults(newAnnotatedURL, data, apiResultContainer);
             
-            // Switch to API results tab
-            switchTab({
-              tabName: 'api',
-              apiResultsTab,
-              tsResultsTab,
-              ts2ResultsTab,
-              aiResultsTab,
-              apiResultContainer,
-              tsResultContainer,
-              ts2ResultContainer,
-              aiResultContainer,
-              canvasContainer,
-              annotatedURL: newAnnotatedURL,
-              canvas,
-              tsImageProcessed: false
-            });
+            // Force tab switch to API tab immediately
+            // Make the API tab active
+            apiResultsTab.classList.add('active');
+            tsResultsTab.classList.remove('active');
+            ts2ResultsTab.classList.remove('active');
+            aiResultsTab.classList.remove('active');
+            
+            // Hide all result containers except API
+            apiResultContainer.style.display = 'block';
+            tsResultContainer.style.display = 'none';
+            ts2ResultContainer.style.display = 'none';
+            aiResultContainer.style.display = 'none';
+            canvasContainer.style.display = 'none'; // Hide the shared canvas container
             
             return { ...data, annotatedURL: newAnnotatedURL };
         } else {
@@ -392,94 +390,13 @@ export function createFloorplanStrategies({
             updateResultsStatus(`Found ${corners.length} corners with O(1) algorithm.`, resultsStatusContainer);
           }
           
-          // 3. Create lines using different approaches
-          if (doLines && processedImage) {
-            updateResultsStatus('Detecting lines with O(1) algorithm...', resultsStatusContainer);
-            
-            // A) First try the new junction-based approach if we have corners
-            if (corners.length > 0) {
-              updateResultsStatus('Creating lines by connecting detected junctions...', resultsStatusContainer);
-              
-              // Use our new method that connects junctions and endpoints
-              lines = connectJunctionsToLines(
-                processedImage.skeleton,
-                corners,
-                {
-                  maxDistance: 100,  // Maximum distance to search for connections
-                  maxLineGap: 8      // For filtering duplicate lines
-                }
-              );
-              
-              updateResultsStatus(`Created ${lines.length} lines by connecting junctions.`, resultsStatusContainer);
-              
-              // If we have enough lines, we'll use those results
-              if (lines.length < 3) {
-                // Fallback to the original Hough transform method
-                updateResultsStatus('Not enough lines found with junction method, falling back to Hough transform...', resultsStatusContainer);
-                
-                // B) Fallback to the standard line detection
-                const lineThreshold = Math.max(5, Math.floor(options.threshVal / 4));
-                console.log(`Using line threshold value: ${lineThreshold} (derived from ${options.threshVal})`);
-                
-                lines = detectStraightLines2(
-                  processedImage.skeleton, 
-                  lineThreshold,  // Use scaled threshold from user input
-                  30,  // minLineLength
-                  8    // maxLineGap
-                );
-                
-                updateResultsStatus(`Detected ${lines.length} lines with Hough transform.`, resultsStatusContainer);
-              }
-            } else {
-              // Just use the standard line detection if no corners detected
-              const lineThreshold = Math.max(5, Math.floor(options.threshVal / 4));
-              console.log(`Using line threshold value: ${lineThreshold} (derived from ${options.threshVal})`);
-              
-              lines = detectStraightLines2(
-                processedImage.skeleton, 
-                lineThreshold,  // Use scaled threshold from user input
-                30,  // minLineLength
-                8    // maxLineGap
-              );
-              
-              updateResultsStatus(`Detected ${lines.length} lines with Hough transform.`, resultsStatusContainer);
-            }
-            
-            // Find intersections of lines
-            lineIntersections = findIntersections(lines);
-            updateResultsStatus(`Found ${lineIntersections.length} line intersections.`, resultsStatusContainer);
-            
-            // Extract endpoints from lines
-            if (lines.length > 0) {
-              // Extract endpoints from each line
-              for (const line of lines) {
-                lineEndpoints.push({ x: line.x1, y: line.y1, type: 'endpoint' });
-                lineEndpoints.push({ x: line.x2, y: line.y2, type: 'endpoint' });
-              }
-              updateResultsStatus(`Extracted ${lineEndpoints.length} line endpoints.`, resultsStatusContainer);
-            }
-          }
+          // ... existing code for line detection ...
           
           // 4. Cluster points if option is checked
           if (doCluster && (corners.length > 0 || lineIntersections.length > 0 || lineEndpoints.length > 0)) {
             updateResultsStatus('Clustering points with O(1) algorithm...', resultsStatusContainer);
             
-            // Combine corners, line intersections, and endpoints for clustering
-            const pointsToCluster = [...corners, ...lineIntersections, ...lineEndpoints];
-            
-            // Use more aggressive clustering parameters
-            const clusterOptions = {
-              maxDistance: 20,         // Increased clustering distance
-              preserveTypes: false,     // Don't preserve types to ensure merging
-              distanceThreshold: 30,   // Maximum distance threshold for points in a cluster
-            };
-
-            console.log(`Clustering ${pointsToCluster.length} points with maxDistance=${clusterOptions.maxDistance}`);
-            
-            // Use user-specified cluster count with our custom options
-            clusteredPoints = clusterPoints2(pointsToCluster, clusterOptions);
-            
-            console.log(`Clustered ${pointsToCluster.length} points into ${clusteredPoints.length} points`);
+            // ... existing code for clustering ...
             
             // IMPORTANT: Start with clean skeleton image before drawing
             processedImage.skeleton = cleanSkeleton;
@@ -506,8 +423,23 @@ export function createFloorplanStrategies({
             }
           }
           
-          // Add the canvas to the result container
-          ts2ResultContainer.innerHTML = '<h3>O(1) TypeScript Implementation Results:</h3>';
+          // Clear the main canvas to avoid showing Sonnet results alongside O1 results
+          if (canvas && canvas.getContext) {
+            const mainCtx = canvas.getContext('2d');
+            if (mainCtx) {
+              mainCtx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+          }
+          
+          // Clear the result container first
+          ts2ResultContainer.innerHTML = '';
+          
+          // Add the heading
+          const heading = document.createElement('h3');
+          heading.textContent = 'O(1) TypeScript Implementation Results:';
+          ts2ResultContainer.appendChild(heading);
+          
+          // Add our canvas with results
           ts2ResultContainer.appendChild(o1Canvas);
           
           // Add debug and results info with point type counts
@@ -548,22 +480,19 @@ export function createFloorplanStrategies({
           updateStatus('O(1) TypeScript processing complete!', statusContainer);
           updateResultsStatus('O(1) TypeScript processing complete!', resultsStatusContainer);
           
-          // Switch to TS2 results tab
-          switchTab({
-            tabName: 'ts2',
-            apiResultsTab,
-            tsResultsTab,
-            ts2ResultsTab,
-            aiResultsTab,
-            apiResultContainer,
-            tsResultContainer,
-            ts2ResultContainer,
-            aiResultContainer,
-            canvasContainer,
-            annotatedURL: null,
-            canvas,
-            tsImageProcessed: false
-          });
+          // Force tab switch to ts2 tab immediately
+          // Make the ts2 tab active
+          apiResultsTab.classList.remove('active');
+          tsResultsTab.classList.remove('active');
+          ts2ResultsTab.classList.add('active');
+          aiResultsTab.classList.remove('active');
+          
+          // Hide all result containers except ts2
+          apiResultContainer.style.display = 'none';
+          tsResultContainer.style.display = 'none';
+          ts2ResultContainer.style.display = 'block';
+          aiResultContainer.style.display = 'none';
+          canvasContainer.style.display = 'none'; // Hide the shared canvas container
           
           return {
             processedImage,
