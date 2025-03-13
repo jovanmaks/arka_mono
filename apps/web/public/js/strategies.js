@@ -30,8 +30,8 @@ export function createFloorplanStrategies({
       name: 'Python API',
       process: async function(file, options, { 
         apiResultContainer, statusContainer, resultsStatusContainer,
-        apiResultsTab, tsResultsTab, ts2ResultsTab,
-        tsResultContainer, ts2ResultContainer, canvasContainer,
+        apiResultsTab, tsResultsTab, ts2ResultsTab, aiResultsTab,
+        tsResultContainer, ts2ResultContainer, aiResultContainer, canvasContainer,
         canvas, updateStatus, updateResultsStatus
       }) {
         updateStatus('Processing with Python API...', statusContainer);
@@ -69,9 +69,11 @@ export function createFloorplanStrategies({
               apiResultsTab,
               tsResultsTab,
               ts2ResultsTab,
+              aiResultsTab,
               apiResultContainer,
               tsResultContainer,
               ts2ResultContainer,
+              aiResultContainer,
               canvasContainer,
               annotatedURL: newAnnotatedURL,
               canvas,
@@ -276,9 +278,11 @@ export function createFloorplanStrategies({
           apiResultsTab,
           tsResultsTab,
           ts2ResultsTab,
+          aiResultsTab,
           apiResultContainer,
           tsResultContainer,
           ts2ResultContainer,
+          aiResultContainer,
           canvasContainer,
           annotatedURL: null,
           canvas,
@@ -300,8 +304,8 @@ export function createFloorplanStrategies({
       name: 'O(1) Algorithm',
       process: async function(file, options, {
         ts2ResultContainer, statusContainer, resultsStatusContainer,
-        apiResultsTab, tsResultsTab, ts2ResultsTab,
-        apiResultContainer, tsResultContainer, canvasContainer,
+        apiResultsTab, tsResultsTab, ts2ResultsTab, aiResultsTab,
+        apiResultContainer, tsResultContainer, aiResultContainer, canvasContainer,
         canvas, updateStatus, updateResultsStatus
       }) {
         updateStatus('Processing using O(1) TypeScript implementation...', statusContainer);
@@ -550,9 +554,11 @@ export function createFloorplanStrategies({
             apiResultsTab,
             tsResultsTab,
             ts2ResultsTab,
+            aiResultsTab,
             apiResultContainer,
             tsResultContainer,
             ts2ResultContainer,
+            aiResultContainer,
             canvasContainer,
             annotatedURL: null,
             canvas,

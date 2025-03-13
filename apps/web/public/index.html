@@ -80,14 +80,23 @@
       display: block;
       margin-bottom: 10px;
     }
-    .process-options {
+    .process-options-container {
+      display: flex;
+      gap: 20px;
       margin-top: 15px;
       border-top: 1px solid #eee;
       padding-top: 10px;
     }
+    .process-options {
+      flex: 1;
+      margin-top: 0;
+      border-top: none;
+      padding-top: 0;
+    }
     .process-options h4 {
       margin-top: 0;
       margin-bottom: 10px;
+      font-size: 0.9em;
     }
     .checkbox-group {
       display: flex;
@@ -182,60 +191,63 @@
           </div>
         </div>
 
-        <!-- Processing options (checkboxes) for TypeScript implementation -->
-        <div class="process-options">
-          <h4>Sonnet Processing Options:</h4>
-          <div class="checkbox-group">
-            <label>
-              <input type="checkbox" id="skeletonizeCheck" checked /> Skeletonize
-            </label>
-            <label>
-              <input type="checkbox" id="cornersCheck" /> Detect Corners
-            </label>
-            <label>
-              <input type="checkbox" id="clusterCheck" /> Cluster Points
-            </label>
-            <label>
-              <input type="checkbox" id="linesCheck" /> Detect Lines
-            </label>
+        <!-- Processing options container -->
+        <div class="process-options-container">
+          <!-- Processing options (checkboxes) for TypeScript implementation -->
+          <div class="process-options">
+            <h4>Sonnet Processing:</h4>
+            <div class="checkbox-group">
+              <label>
+                <input type="checkbox" id="skeletonizeCheck" checked /> Skeletonize
+              </label>
+              <label>
+                <input type="checkbox" id="cornersCheck" /> Detect Corners
+              </label>
+              <label>
+                <input type="checkbox" id="clusterCheck" /> Cluster Points
+              </label>
+              <label>
+                <input type="checkbox" id="linesCheck" /> Detect Lines
+              </label>
+            </div>
           </div>
-        </div>
-        
-        <!-- Processing options (checkboxes) for O1 implementation -->
-        <div class="process-options">
-          <h4>O1 Processing Options:</h4>
-          <div class="checkbox-group">
-            <label>
-              <input type="checkbox" id="o1SkeletonizeCheck" checked /> Skeletonize
-            </label>
-            <label>
-              <input type="checkbox" id="o1CornersCheck" /> Detect Corners
-            </label>
-            <label>
-              <input type="checkbox" id="o1ClusterCheck" /> Cluster Points
-            </label>
-            <label>
-              <input type="checkbox" id="o1LinesCheck" /> Detect Lines
-            </label>
+          
+          <!-- Processing options (checkboxes) for O1 implementation -->
+          <div class="process-options">
+            <h4>O1 Processing:</h4>
+            <div class="checkbox-group">
+              <label>
+                <input type="checkbox" id="o1SkeletonizeCheck" checked /> Skeletonize
+              </label>
+              <label>
+                <input type="checkbox" id="o1CornersCheck" /> Detect Corners
+              </label>
+              <label>
+                <input type="checkbox" id="o1ClusterCheck" /> Cluster Points
+              </label>
+              <label>
+                <input type="checkbox" id="o1LinesCheck" /> Detect Lines
+              </label>
+            </div>
           </div>
-        </div>
 
-        <!-- Processing options (checkboxes) for AI implementation -->
-        <div class="process-options">
-          <h4>AI Processing Options:</h4>
-          <div class="checkbox-group">
-            <label>
-              <input type="checkbox" id="aiSkeletonizeCheck" checked /> Skeletonize
-            </label>
-            <label>
-              <input type="checkbox" id="aiCornersCheck" /> Detect Corners
-            </label>
-            <label>
-              <input type="checkbox" id="aiClusterCheck" /> Cluster Points
-            </label>
-            <label>
-              <input type="checkbox" id="aiLinesCheck" /> Detect Lines
-            </label>
+          <!-- Processing options (checkboxes) for AI implementation -->
+          <div class="process-options">
+            <h4>AI Processing:</h4>
+            <div class="checkbox-group">
+              <label>
+                <input type="checkbox" id="aiSkeletonizeCheck" checked /> Skeletonize
+              </label>
+              <label>
+                <input type="checkbox" id="aiCornersCheck" /> Detect Corners
+              </label>
+              <label>
+                <input type="checkbox" id="aiClusterCheck" /> Cluster Points
+              </label>
+              <label>
+                <input type="checkbox" id="aiLinesCheck" /> Detect Lines
+              </label>
+            </div>
           </div>
         </div>
         
