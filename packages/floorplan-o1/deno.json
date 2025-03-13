@@ -1,7 +1,4 @@
 {
-  "compilerOptions": {
-    "lib": ["dom", "dom.iterable", "esnext"]
-  },
   "tasks": {
     "build": "deno run -A build.ts"
   }

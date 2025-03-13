@@ -28,7 +28,12 @@ export function createFloorplanStrategies({
     // Python API Strategy
     [FloorplanProcessingStrategy.PYTHON_API]: {
       name: 'Python API',
-      process: async function(file, options, { apiResultContainer, annotatedURL, statusContainer, resultsStatusContainer }) {
+      process: async function(file, options, { 
+        apiResultContainer, statusContainer, resultsStatusContainer,
+        apiResultsTab, tsResultsTab, ts2ResultsTab,
+        tsResultContainer, ts2ResultContainer, canvasContainer,
+        canvas, updateStatus, updateResultsStatus
+      }) {
         updateStatus('Processing with Python API...', statusContainer);
         updateResultsStatus('Processing with Python API...', resultsStatusContainer);
         
@@ -61,13 +66,13 @@ export function createFloorplanStrategies({
             // Switch to API results tab
             switchTab({
               tabName: 'api',
-              apiResultsTab: document.getElementById('apiResultsTab'),
-              tsResultsTab: document.getElementById('tsResultsTab'),
-              ts2ResultsTab: document.getElementById('ts2ResultsTab'),
+              apiResultsTab,
+              tsResultsTab,
+              ts2ResultsTab,
               apiResultContainer,
-              tsResultContainer: document.getElementById('tsResultContainer'),
+              tsResultContainer,
               ts2ResultContainer,
-              canvasContainer: document.getElementById('canvasContainer'),
+              canvasContainer,
               annotatedURL: newAnnotatedURL,
               canvas,
               tsImageProcessed: false
@@ -84,7 +89,12 @@ export function createFloorplanStrategies({
     // TypeScript Floorplan Processor Strategy
     [FloorplanProcessingStrategy.TS_PROCESSOR]: {
       name: 'TypeScript Processor',
-      process: async function(file, options, { tsResultContainer, statusContainer, resultsStatusContainer }) {
+      process: async function(file, options, {
+        tsResultContainer, statusContainer, resultsStatusContainer,
+        apiResultsTab, tsResultsTab, ts2ResultsTab,
+        apiResultContainer, ts2ResultContainer, canvasContainer,
+        canvas, updateStatus, updateResultsStatus
+      }) {
         updateStatus('Processing using TypeScript implementation...', statusContainer);
         updateResultsStatus('Processing with TypeScript implementation...', resultsStatusContainer);
         
@@ -263,13 +273,13 @@ export function createFloorplanStrategies({
         // Switch to TS results tab to show the canvas
         switchTab({
           tabName: 'ts',
-          apiResultsTab: document.getElementById('apiResultsTab'),
-          tsResultsTab: document.getElementById('tsResultsTab'),
-          ts2ResultsTab: document.getElementById('ts2ResultsTab'),
-          apiResultContainer: document.getElementById('apiResultContainer'),
+          apiResultsTab,
+          tsResultsTab,
+          ts2ResultsTab,
+          apiResultContainer,
           tsResultContainer,
           ts2ResultContainer,
-          canvasContainer: document.getElementById('canvasContainer'),
+          canvasContainer,
           annotatedURL: null,
           canvas,
           tsImageProcessed
@@ -288,7 +298,12 @@ export function createFloorplanStrategies({
     // O(1) Algorithm Strategy
     [FloorplanProcessingStrategy.O1_PROCESSOR]: {
       name: 'O(1) Algorithm',
-      process: async function(file, options, { ts2ResultContainer, statusContainer, resultsStatusContainer }) {
+      process: async function(file, options, {
+        ts2ResultContainer, statusContainer, resultsStatusContainer,
+        apiResultsTab, tsResultsTab, ts2ResultsTab,
+        apiResultContainer, tsResultContainer, canvasContainer,
+        canvas, updateStatus, updateResultsStatus
+      }) {
         updateStatus('Processing using O(1) TypeScript implementation...', statusContainer);
         updateResultsStatus('Processing using O(1) TypeScript implementation...', resultsStatusContainer);
         
@@ -532,13 +547,13 @@ export function createFloorplanStrategies({
           // Switch to TS2 results tab
           switchTab({
             tabName: 'ts2',
-            apiResultsTab: document.getElementById('apiResultsTab'),
-            tsResultsTab: document.getElementById('tsResultsTab'),
-            ts2ResultsTab: document.getElementById('ts2ResultsTab'),
-            apiResultContainer: document.getElementById('apiResultContainer'),
-            tsResultContainer: document.getElementById('tsResultContainer'),
+            apiResultsTab,
+            tsResultsTab,
+            ts2ResultsTab,
+            apiResultContainer,
+            tsResultContainer,
             ts2ResultContainer,
-            canvasContainer: document.getElementById('canvasContainer'),
+            canvasContainer,
             annotatedURL: null,
             canvas,
             tsImageProcessed: false

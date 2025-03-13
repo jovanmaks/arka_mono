@@ -184,13 +184,6 @@
       "dependencies": [
         "npm:esbuild@~0.19.12"
       ]
-    },
-    "members": {
-      "apps/web": {
-        "dependencies": [
-          "npm:react@*"
-        ]
-      }
     }
   }
 }

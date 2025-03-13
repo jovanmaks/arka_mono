@@ -205,6 +205,13 @@ async function handleScanClick(strategyType) {
           statusContainer,
           resultsStatusContainer,
           annotatedURL,
+          // Add tab elements to context
+          apiResultsTab,
+          tsResultsTab,
+          ts2ResultsTab,
+          aiResultsTab,
+          canvasContainer,
+          canvas,
           updateStatus: (message) => updateStatus(message, statusContainer),
           updateResultsStatus: (message) => updateResultsStatus(message, resultsStatusContainer)
       };
