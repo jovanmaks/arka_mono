@@ -129,7 +129,7 @@ def process_floorplan():
         corners_py = [[int(x), int(y)] for (x, y) in corners]
         clustered_pts_py = [[int(x), int(y)] for (x, y) in clustered_pts]
         lines_list_py = [
-            [int(x1), int(y1), int(x2), int(y2)]
+            [int(x1), int(y1), int(x2, int(y2))]
             for (x1, y1, x2, y2) in lines_list
         ]
 
@@ -198,9 +198,33 @@ def transform_floorplan():
                 
                 result_path = ai_process_floorplan(
                     filepath,
-                    UPLOAD_FOLDER,
-                    visualization_type=visualization_type
+                    UPLOAD_FOLDER
                 )
+                
+                # Get the base directory containing all visualizations
+                base_dir = os.path.dirname(result_path)
+                base_dir_name = os.path.basename(base_dir)
+                
+                # Create paths for all visualizations
+                visualization_paths = {
+                    'all_corners': f"uploads/{base_dir_name}/all_corners.png",
+                    'wall_corners': f"uploads/{base_dir_name}/wall_corners.png",
+                    'door_corners': f"uploads/{base_dir_name}/door_corners.png",
+                    'icon_corners': f"uploads/{base_dir_name}/icon_corners.png",
+                    'corner_heatmap': f"uploads/{base_dir_name}/corner_heatmap.png",
+                    'icon_heatmap': f"uploads/{base_dir_name}/icon_heatmap.png",
+                    'room_heatmap': f"uploads/{base_dir_name}/room_heatmap.png",
+                    'result_line': f"uploads/{base_dir_name}/result_line.png",
+                    'result_door': f"uploads/{base_dir_name}/result_door.png",
+                    'result_icon': f"uploads/{base_dir_name}/result_icon.png"
+                }
+                
+                # Return all visualization paths in the response
+                return jsonify({
+                    "status": "success",
+                    "transformedImagePath": f"uploads/{base_dir_name}/all_corners.png",
+                    "visualizationPaths": visualization_paths
+                })
             except cv2.error as e:
                 # Handle OpenCV specific errors
                 print(f"OpenCV error: {str(e)}")

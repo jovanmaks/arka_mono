@@ -54,6 +54,7 @@ let previewURL = null;
 let annotatedURL = null;
 let tsImageProcessed = false;
 let floorplanStrategies = null;
+let aiVisualizationPaths = null;
 
 // DOM Elements
 const fileInput = document.getElementById('fileInput');
@@ -254,10 +255,6 @@ async function handleAiScanClick() {
         const formData = new FormData();
         formData.append('image', selectedFile);
         
-        // Get the selected visualization type
-        const selectedVisualization = document.querySelector('input[name="aiVisualization"]:checked').value;
-        formData.append('visualizationType', selectedVisualization);
-        
         const baseUrl = `http://${window.location.hostname}:5000`;
         const response = await fetch(`${baseUrl}/transform-floorplan`, {
             method: 'POST',
@@ -274,8 +271,15 @@ async function handleAiScanClick() {
         updateResultsStatus('AI Processing complete!', resultsStatusContainer);
         
         if (data.transformedImagePath) {
-            const transformedURL = `${baseUrl}/${data.transformedImagePath}`;
-            showTransformResults(transformedURL, aiResultContainer);
+            // Store all visualization paths with full URLs
+            aiVisualizationPaths = {};
+            for (const [key, path] of Object.entries(data.visualizationPaths)) {
+                aiVisualizationPaths[key] = `${baseUrl}/${path}`;
+            }
+
+            // Show the initial visualization (all_corners)
+            showTransformResults(aiVisualizationPaths.all_corners, aiResultContainer);
+            
             // Switch to AI results tab
             switchTab({
                 tabName: 'ai',
@@ -288,15 +292,36 @@ async function handleAiScanClick() {
                 ts2ResultContainer,
                 aiResultContainer,
                 canvasContainer,
-                annotatedURL: transformedURL,
+                annotatedURL: aiVisualizationPaths.all_corners,
                 canvas,
                 tsImageProcessed: false
+            });
+
+            // Add or update radio button change handler
+            const radioButtons = document.querySelectorAll('input[name="aiVisualization"]');
+            radioButtons.forEach(radio => {
+                // Remove any existing listeners to prevent duplicates
+                radio.removeEventListener('change', handleVisualizationChange);
+                // Add new listener
+                radio.addEventListener('change', handleVisualizationChange);
             });
         }
     } catch (err) {
         console.error(err);
         updateStatus(`Error: ${err.message}`, statusContainer);
         updateResultsStatus(`Error: ${err.message}`, resultsStatusContainer);
+        aiVisualizationPaths = null;
+    }
+}
+
+// Handler function for visualization type change
+function handleVisualizationChange(e) {
+    if (aiVisualizationPaths) {
+        const selectedType = e.target.value;
+        const selectedPath = aiVisualizationPaths[selectedType];
+        if (selectedPath) {
+            showTransformResults(selectedPath, aiResultContainer);
+        }
     }
 }
 
@@ -308,6 +333,7 @@ function handleClear() {
   previewURL = null;
   annotatedURL = null;
   tsImageProcessed = false;
+  aiVisualizationPaths = null;
   
   // Reset form
   fileInput.value = '';
