@@ -93,7 +93,7 @@ export function createFloorplanStrategies({
         tsResultContainer, statusContainer, resultsStatusContainer,
         apiResultsTab, tsResultsTab, ts2ResultsTab,
         apiResultContainer, ts2ResultContainer, canvasContainer,
-        canvas, updateStatus, updateResultsStatus
+        canvas, clearCanvas, updateStatus, updateResultsStatus
       }) {
         updateStatus('Processing using TypeScript implementation...', statusContainer);
         updateResultsStatus('Processing with TypeScript implementation...', resultsStatusContainer);
@@ -113,10 +113,19 @@ export function createFloorplanStrategies({
         let lines = [];
         let processedImage = null;
         
-        // Clear the canvas
-        clearCanvas(ctx, canvas);
+        // Clear the canvas properly
+        if (!canvas) {
+          throw new Error("Canvas element not found");
+        }
+        
+        // Always clear canvas before drawing to prevent overlap with other strategies
+        clearCanvas();
         canvas.width = img.width;
         canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          throw new Error("Could not get canvas context");
+        }
         
         // 1. Skeletonize the image (always needed as base)
         if (doSkeletonize) {
@@ -306,6 +315,13 @@ export function createFloorplanStrategies({
         apiResultContainer, tsResultContainer, aiResultContainer, canvasContainer,
         canvas, updateStatus, updateResultsStatus
       }) {
+        if (!canvas || !ts2ResultContainer) {
+          const errorMsg = 'Required DOM elements are missing for O1 strategy';
+          console.error(errorMsg);
+          updateStatus(errorMsg, statusContainer);
+          return;
+        }
+
         updateStatus('Processing using O(1) TypeScript implementation...', statusContainer);
         updateResultsStatus('Processing using O(1) TypeScript implementation...', resultsStatusContainer);
         
@@ -323,39 +339,34 @@ export function createFloorplanStrategies({
           let clusteredPoints = [];
           let lines = [];
           let lineIntersections = [];
-          let lineEndpoints = []; // Added to store line endpoints
+          let lineEndpoints = [];
           let processedImage = null;
-          
-          // Create a canvas for the O(1) results
-          const o1Canvas = document.createElement('canvas');
-          o1Canvas.style.maxWidth = '100%';
-          o1Canvas.style.height = 'auto';
-          o1Canvas.width = img.width;
-          o1Canvas.height = img.height;
+
+          // Set up the main canvas
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            throw new Error("Could not get canvas context");
+          }
           
           // 1. Skeletonize the image 
           if (doSkeletonize) {
             updateResultsStatus('Skeletonizing image with O(1) algorithm...', resultsStatusContainer);
-            // Explicitly pass the threshold value as an object
             processedImage = await skeletonize2Image(img, {
               threshold: options.threshVal,
               inverse: true,
-              // Add a cache buster to ensure reprocessing when threshold changes
               cacheBuster: Date.now() 
             });
             
-            // Render the skeletonized image to canvas
-            renderImageDataToCanvas2(processedImage.skeleton, o1Canvas);
-            
-            // Log that we're using the user-specified threshold
-            console.log(`Using threshold value: ${options.threshVal} for skeletonization`);
+            // Render the skeletonized image to main canvas
+            renderImageDataToCanvas2(processedImage.skeleton, canvas);
           } else {
             // If not skeletonizing, just draw the original image
-            const o1Ctx = o1Canvas.getContext('2d');
-            o1Ctx.drawImage(img, 0, 0);
+            ctx.drawImage(img, 0, 0);
             
             // Create a dummy processedImage object
-            const imageData = o1Ctx.getImageData(0, 0, o1Canvas.width, o1Canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             processedImage = {
               skeleton: imageData,
               originalWidth: img.width,
@@ -373,7 +384,7 @@ export function createFloorplanStrategies({
             processedImage.skeleton.width,
             processedImage.skeleton.height
           );
-          
+
           // 2. Detect corners if option is checked
           if (doCorners && processedImage) {
             updateResultsStatus('Detecting corners with O(1) algorithm...', resultsStatusContainer);
@@ -385,23 +396,57 @@ export function createFloorplanStrategies({
             };
             
             corners = detectCorners2(processedImage.skeleton, cornerOptions);
-            
-            // DO NOT draw corners here - we'll only draw clustered points later
             updateResultsStatus(`Found ${corners.length} corners with O(1) algorithm.`, resultsStatusContainer);
           }
           
-          // ... existing code for line detection ...
+          // 3. Detect lines if option is checked
+          if (doLines && processedImage) {
+            updateResultsStatus('Detecting lines with O(1) algorithm...', resultsStatusContainer);
+            
+            // Set adaptive parameters based on image size
+            const adaptiveDistance = Math.max(5, Math.min(10, Math.floor(canvas.width / 80)));
+            const adaptiveMaxGap = Math.max(5, Math.min(15, Math.floor(canvas.width / 40)));
+            
+            // Detect lines with appropriate parameters
+            lines = detectStraightLines2(processedImage.skeleton, {
+              threshold: 20,
+              minLineLength: 20,
+              maxLineGap: adaptiveMaxGap,
+              maxDistance: adaptiveDistance
+            });
+            
+            updateResultsStatus(`Detected ${lines.length} lines with O(1) algorithm.`, resultsStatusContainer);
+            
+            // Find line intersections if we have lines
+            if (lines.length > 1) {
+              lineIntersections = findIntersections(lines);
+              updateResultsStatus(`Found ${lineIntersections.length} line intersections.`, resultsStatusContainer);
+            }
+          }
           
           // 4. Cluster points if option is checked
           if (doCluster && (corners.length > 0 || lineIntersections.length > 0 || lineEndpoints.length > 0)) {
             updateResultsStatus('Clustering points with O(1) algorithm...', resultsStatusContainer);
             
-            // ... existing code for clustering ...
+            // Combine all detected points for clustering
+            const allPoints = [
+              ...corners,
+              ...lineIntersections,
+              ...lineEndpoints
+            ];
             
-            // IMPORTANT: Start with clean skeleton image before drawing
+            // Cluster with appropriate max distance based on image size
+            const clusterDistance = Math.max(5, Math.min(20, Math.floor(canvas.width / 50)));
+            clusteredPoints = clusterPoints2(allPoints, {
+              maxDistance: clusterDistance,
+              distanceThreshold: 30,
+              preserveTypes: true
+            });
+            
+            // Restore the clean skeleton for drawing
             processedImage.skeleton = cleanSkeleton;
             
-            // First draw lines if we have them
+            // Draw lines first if we have them
             if (lines.length > 0) {
               processedImage.skeleton = drawLines2(processedImage.skeleton, lines, true);
             }
@@ -411,88 +456,88 @@ export function createFloorplanStrategies({
               processedImage.skeleton = drawClusteredPoints2(processedImage.skeleton, clusteredPoints, true);
             }
             
-            // Render the final image with lines and clustered points to canvas
-            renderImageDataToCanvas2(processedImage.skeleton, o1Canvas);
+            // Render the final image to canvas
+            renderImageDataToCanvas2(processedImage.skeleton, canvas);
             
             updateResultsStatus(`Clustered into ${clusteredPoints.length} points with O(1) algorithm.`, resultsStatusContainer);
           } else {
             // If not clustering, still draw lines if we have them
             if (lines.length > 0) {
               processedImage.skeleton = drawLines2(processedImage.skeleton, lines, true);
-              renderImageDataToCanvas2(processedImage.skeleton, o1Canvas);
+              renderImageDataToCanvas2(processedImage.skeleton, canvas);
             }
           }
           
-          // Clear the main canvas to avoid showing Sonnet results alongside O1 results
-          if (canvas && canvas.getContext) {
-            const mainCtx = canvas.getContext('2d');
-            if (mainCtx) {
-              mainCtx.clearRect(0, 0, canvas.width, canvas.height);
-            }
+          // Clear the result container
+          if (ts2ResultContainer) {
+            ts2ResultContainer.innerHTML = '';
+            
+            // Add the heading
+            const heading = document.createElement('h3');
+            heading.textContent = 'O(1) TypeScript Implementation Results:';
+            ts2ResultContainer.appendChild(heading);
+            
+            // Add debug and results info with point type counts
+            const pointTypes = clusteredPoints.reduce((counts, point) => {
+              counts[point.type || 'unclassified'] = (counts[point.type || 'unclassified'] || 0) + 1;
+              return counts;
+            }, {});
+            
+            const resultsInfo = document.createElement('div');
+            resultsInfo.innerHTML = `<p>
+              <strong>Detected Features:</strong>
+              <ul>
+                <li>Total Points: ${clusteredPoints.length}</li>
+                <li>Total Lines: ${lines.length}</li>
+                <li>Line Intersections: ${lineIntersections.length}</li>
+              </ul>
+              
+              <strong>Junction Types:</strong>
+              <ul>
+                <li>L-Junctions (Corners): ${pointTypes['corner'] || 0}</li>
+                <li>T-Junctions: ${pointTypes['t_junction'] || 0}</li>
+                <li>X-Junctions (Intersections): ${pointTypes['intersection'] || 0}</li>
+                <li>Endpoints: ${pointTypes['endpoint'] || 0}</li>
+                <li>Unclassified: ${pointTypes['unclassified'] || 0}</li>
+              </ul>
+              
+              <strong>Debug Info:</strong>
+              <ul>
+                <li>Threshold Value: ${options.threshVal}</li>
+                <li>Algorithm: ${processedImage.debugInfo.algorithm || 'O(1) Skeletonization'}</li>
+                <li>Original Size: ${processedImage.originalWidth} × ${processedImage.originalHeight}</li>
+                <li>Line Detection: ${lines.length >= 3 ? 'Junction-based' : 'Hough transform'}</li>
+              </ul>
+            </p>`;
+            
+            ts2ResultContainer.appendChild(resultsInfo);
           }
-          
-          // Clear the result container first
-          ts2ResultContainer.innerHTML = '';
-          
-          // Add the heading
-          const heading = document.createElement('h3');
-          heading.textContent = 'O(1) TypeScript Implementation Results:';
-          ts2ResultContainer.appendChild(heading);
-          
-          // Add our canvas with results
-          ts2ResultContainer.appendChild(o1Canvas);
-          
-          // Add debug and results info with point type counts
-          const pointTypes = clusteredPoints.reduce((counts, point) => {
-            counts[point.type || 'unclassified'] = (counts[point.type || 'unclassified'] || 0) + 1;
-            return counts;
-          }, {});
-          
-          const resultsInfo = document.createElement('div');
-          resultsInfo.innerHTML = `<p>
-            <strong>Detected Features:</strong>
-            <ul>
-              <li>Total Points: ${clusteredPoints.length}</li>
-              <li>Total Lines: ${lines.length}</li>
-              <li>Line Intersections: ${lineIntersections.length}</li>
-            </ul>
-            
-            <strong>Junction Types:</strong>
-            <ul>
-              <li>L-Junctions (Corners): ${pointTypes['corner'] || 0}</li>
-              <li>T-Junctions: ${pointTypes['t_junction'] || 0}</li>
-              <li>X-Junctions (Intersections): ${pointTypes['intersection'] || 0}</li>
-              <li>Endpoints: ${pointTypes['endpoint'] || 0}</li>
-              <li>Unclassified: ${pointTypes['unclassified'] || 0}</li>
-            </ul>
-            
-            <strong>Debug Info:</strong>
-            <ul>
-              <li>Threshold Value: ${options.threshVal}</li>
-              <li>Algorithm: ${processedImage.debugInfo.algorithm || 'O(1) Skeletonization'}</li>
-              <li>Original Size: ${processedImage.originalWidth} × ${processedImage.originalHeight}</li>
-              <li>Line Detection: ${lines.length >= 3 ? 'Junction-based' : 'Hough transform'}</li>
-            </ul>
-          </p>`;
-          
-          ts2ResultContainer.appendChild(resultsInfo);
           
           updateStatus('O(1) TypeScript processing complete!', statusContainer);
           updateResultsStatus('O(1) TypeScript processing complete!', resultsStatusContainer);
           
-          // Force tab switch to ts2 tab immediately
-          // Make the ts2 tab active
-          apiResultsTab.classList.remove('active');
-          tsResultsTab.classList.remove('active');
-          ts2ResultsTab.classList.add('active');
-          aiResultsTab.classList.remove('active');
-          
-          // Hide all result containers except ts2
-          apiResultContainer.style.display = 'none';
-          tsResultContainer.style.display = 'none';
-          ts2ResultContainer.style.display = 'block';
-          aiResultContainer.style.display = 'none';
-          canvasContainer.style.display = 'none'; // Hide the shared canvas container
+          // Use the safe switchTab function to switch to the O1 tab
+          // Instead of manually manipulating DOM elements
+          if (typeof switchTab === 'function') {
+            switchTab({
+              tabName: 'ts2',
+              apiResultsTab, tsResultsTab, ts2ResultsTab, aiResultsTab,
+              apiResultContainer, tsResultContainer, ts2ResultContainer, aiResultContainer,
+              canvasContainer, annotatedURL: null, canvas, tsImageProcessed: true
+            });
+          } else {
+            // Fallback to manual tab switching if switchTab is not available
+            if (apiResultsTab) apiResultsTab.classList.remove('active');
+            if (tsResultsTab) tsResultsTab.classList.remove('active'); 
+            if (ts2ResultsTab) ts2ResultsTab.classList.add('active');
+            if (aiResultsTab) aiResultsTab.classList.remove('active');
+            
+            if (apiResultContainer) apiResultContainer.style.display = 'none';
+            if (tsResultContainer) tsResultContainer.style.display = 'none';
+            if (ts2ResultContainer) ts2ResultContainer.style.display = 'block';
+            if (aiResultContainer) aiResultContainer.style.display = 'none';
+            if (canvasContainer) canvasContainer.style.display = 'block';
+          }
           
           return {
             processedImage,

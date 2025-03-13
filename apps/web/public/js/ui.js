@@ -99,34 +99,55 @@ export function switchTab({
     apiResultContainer, tsResultContainer, ts2ResultContainer, aiResultContainer,
     canvasContainer, annotatedURL, canvas, tsImageProcessed, handleScanClick, FloorplanProcessingStrategy
 }) {
+    // Safety check to ensure all required DOM elements exist
+    if (!apiResultsTab || !tsResultsTab || !ts2ResultsTab || !aiResultsTab ||
+        !apiResultContainer || !tsResultContainer || !ts2ResultContainer || !aiResultContainer) {
+        console.error('Tab switching error: Required DOM elements are missing');
+        return;
+    }
+
+    console.log(`Switching to tab: ${tabName}`);
+
+    // Don't clear canvas on tab switch - we'll handle canvas content with strategy-specific logic
+
     // Remove active class from all tabs
     apiResultsTab.classList.remove('active');
     tsResultsTab.classList.remove('active');
     ts2ResultsTab.classList.remove('active');
     aiResultsTab.classList.remove('active');
     
-    // Hide all result containers
-    apiResultContainer.style.display = 'none';
-    tsResultContainer.style.display = 'none';
-    ts2ResultContainer.style.display = 'none';
-    aiResultContainer.style.display = 'none';
-    canvasContainer.style.display = 'none';
+    // Hide all result containers safely
+    if (apiResultContainer) apiResultContainer.style.display = 'none';
+    if (tsResultContainer) tsResultContainer.style.display = 'none';
+    if (ts2ResultContainer) ts2ResultContainer.style.display = 'none';
+    if (aiResultContainer) aiResultContainer.style.display = 'none';
+    if (canvasContainer) canvasContainer.style.display = 'none';
     
     // Show selected tab content
     switch (tabName) {
         case 'api':
             apiResultsTab.classList.add('active');
             apiResultContainer.style.display = 'block';
+            // Show canvas only if we have an annotated image URL
+            if (canvasContainer && annotatedURL) {
+                canvasContainer.style.display = 'block';
+            }
             break;
         case 'ts':
             tsResultsTab.classList.add('active');
             tsResultContainer.style.display = 'block';
-            canvasContainer.style.display = tsImageProcessed ? 'block' : 'none';
+            if (canvasContainer && tsImageProcessed) {
+                canvasContainer.style.display = 'block';
+                // Canvas content will be handled by the tab click handler in main.js
+            }
             break;
         case 'ts2':
             ts2ResultsTab.classList.add('active');
             ts2ResultContainer.style.display = 'block';
-            canvasContainer.style.display = 'block'; // Always show canvas for O1 strategy
+            if (canvasContainer) {
+                canvasContainer.style.display = 'block'; // Always show canvas for O1 strategy
+                // Canvas content will be handled by the tab click handler in main.js
+            }
             break;
         case 'ai':
             aiResultsTab.classList.add('active');

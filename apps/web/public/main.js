@@ -53,8 +53,11 @@ let selectedFile = null;
 let previewURL = null;
 let annotatedURL = null;
 let tsImageProcessed = false;
+let ts2ImageProcessed = false; // Add separate state for O1 strategy
 let floorplanStrategies = null;
 let aiVisualizationPaths = null;
+let sonnetResults = null; // Store Sonnet results
+let o1Results = null; // Store O1 results
 
 // DOM Elements
 const fileInput = document.getElementById('fileInput');
@@ -198,6 +201,15 @@ async function handleScanClick(strategyType) {
           floorplanStrategies = initializeStrategies();
       }
       
+      // Ensure DOM elements exist before passing them to strategy execution
+      if (!canvasContainer || !canvas || !apiResultsTab || 
+          !tsResultsTab || !ts2ResultsTab || !aiResultsTab || 
+          !apiResultContainer || !tsResultContainer || 
+          !ts2ResultContainer || !aiResultContainer) {
+          updateStatus('Error: Required DOM elements are missing', statusContainer);
+          return;
+      }
+      
       // Create context for strategy execution
       const context = {
           apiResultContainer,
@@ -206,15 +218,18 @@ async function handleScanClick(strategyType) {
           statusContainer,
           resultsStatusContainer,
           annotatedURL,
-          // Add tab elements to context
           apiResultsTab,
           tsResultsTab,
           ts2ResultsTab,
           aiResultsTab,
           canvasContainer,
           canvas,
+          clearCanvas: () => clearCanvas(ctx, canvas), // Provide a clearCanvas function
+          switchTab, // Add the switchTab function to context
           updateStatus: (message) => updateStatus(message, statusContainer),
-          updateResultsStatus: (message) => updateResultsStatus(message, resultsStatusContainer)
+          updateResultsStatus: (message) => updateResultsStatus(message, resultsStatusContainer),
+          sonnetResults,  // Pass current sonnet results
+          o1Results       // Pass current o1 results
       };
       
       // Execute the selected strategy
@@ -226,11 +241,15 @@ async function handleScanClick(strategyType) {
           context
       );
       
-      // Update state based on result
-      if (strategyType === FloorplanProcessingStrategy.PYTHON_API && result.annotatedURL) {
+      // Update state based on result and strategy type
+      if (strategyType === FloorplanProcessingStrategy.PYTHON_API && result?.annotatedURL) {
           annotatedURL = result.annotatedURL;
-      } else if (strategyType === FloorplanProcessingStrategy.TS_PROCESSOR && result.tsImageProcessed) {
-          tsImageProcessed = result.tsImageProcessed;
+      } else if (strategyType === FloorplanProcessingStrategy.TS_PROCESSOR && result) {
+          tsImageProcessed = true;
+          sonnetResults = result; // Store Sonnet results
+      } else if (strategyType === FloorplanProcessingStrategy.O1_PROCESSOR && result) {
+          ts2ImageProcessed = true;
+          o1Results = result; // Store O1 results
       }
       
   } catch (err) {
@@ -333,7 +352,10 @@ function handleClear() {
   previewURL = null;
   annotatedURL = null;
   tsImageProcessed = false;
+  ts2ImageProcessed = false; // Reset O1 state
   aiVisualizationPaths = null;
+  sonnetResults = null; // Clear Sonnet results
+  o1Results = null; // Clear O1 results
   
   // Reset form
   fileInput.value = '';
@@ -415,35 +437,52 @@ document.addEventListener('DOMContentLoaded', () => {
     handleO1CheckboxDependencies(o1SkeletonizeCheck, o1CornersCheck, o1ClusterCheck, o1LinesCheck));
   
   // Tab handlers
-  apiResultsTab.addEventListener('click', () => 
+  apiResultsTab.addEventListener('click', () => {
+    // Switch to API tab
     switchTab({
       tabName: 'api',
       apiResultsTab, tsResultsTab, ts2ResultsTab, aiResultsTab,
       apiResultContainer, tsResultContainer, ts2ResultContainer, aiResultContainer,
       canvasContainer, annotatedURL, canvas, tsImageProcessed,
       handleScanClick, FloorplanProcessingStrategy
-    })
-  );
+    });
+    
+    // API tab uses its own image rendering rather than canvas
+  });
   
-  tsResultsTab.addEventListener('click', () => 
+  tsResultsTab.addEventListener('click', () => {
+    // Switch to Sonnet tab
     switchTab({
       tabName: 'ts',
       apiResultsTab, tsResultsTab, ts2ResultsTab, aiResultsTab,
       apiResultContainer, tsResultContainer, ts2ResultContainer, aiResultContainer,
       canvasContainer, annotatedURL, canvas, tsImageProcessed,
       handleScanClick, FloorplanProcessingStrategy
-    })
-  );
+    });
+    
+    // Redraw the Sonnet results if available without clearing the canvas
+    if (sonnetResults && sonnetResults.processedImage && canvas) {
+      // Don't clear canvas, just render over it
+      renderImageDataToCanvas(sonnetResults.processedImage.skeleton, canvas);
+    }
+  });
   
-  ts2ResultsTab.addEventListener('click', () => 
+  ts2ResultsTab.addEventListener('click', () => {
+    // Switch to O1 tab
     switchTab({
       tabName: 'ts2',
       apiResultsTab, tsResultsTab, ts2ResultsTab, aiResultsTab,
       apiResultContainer, tsResultContainer, ts2ResultContainer, aiResultContainer,
-      canvasContainer, annotatedURL, canvas, tsImageProcessed,
+      canvasContainer, annotatedURL, canvas, ts2ImageProcessed,
       handleScanClick, FloorplanProcessingStrategy
-    })
-  );
+    });
+    
+    // Redraw the O1 results if available without clearing the canvas
+    if (o1Results && o1Results.processedImage && canvas) {
+      // Don't clear canvas, just render over it
+      renderImageDataToCanvas2(o1Results.processedImage.skeleton, canvas);
+    }
+  });
 
   aiResultsTab.addEventListener('click', () => 
     switchTab({
