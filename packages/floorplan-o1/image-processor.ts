@@ -106,6 +106,7 @@ export function thresholdImage(
  * Renders an ImageData to a canvas
  */
 export function renderImageDataToCanvas(imageData: ImageData, canvas: HTMLCanvasElement): void {
+  // Set canvas dimensions to match image dimensions exactly
   canvas.width = imageData.width;
   canvas.height = imageData.height;
   
@@ -114,6 +115,7 @@ export function renderImageDataToCanvas(imageData: ImageData, canvas: HTMLCanvas
     throw new Error('Could not get canvas context');
   }
   
+  // Draw the image data at its natural size
   ctx.putImageData(imageData, 0, 0);
 }
 

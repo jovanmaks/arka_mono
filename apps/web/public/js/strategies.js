@@ -342,7 +342,8 @@ export function createFloorplanStrategies({
           let lineEndpoints = [];
           let processedImage = null;
 
-          // Set up the main canvas
+          // Set up the main canvas with correct dimensions
+          clearCanvas();
           canvas.width = img.width;
           canvas.height = img.height;
           const ctx = canvas.getContext('2d');
@@ -359,14 +360,18 @@ export function createFloorplanStrategies({
               cacheBuster: Date.now() 
             });
             
+            // Ensure canvas matches the processed image dimensions
+            canvas.width = processedImage.skeleton.width;
+            canvas.height = processedImage.skeleton.height;
+            
             // Render the skeletonized image to main canvas
             renderImageDataToCanvas2(processedImage.skeleton, canvas);
           } else {
-            // If not skeletonizing, just draw the original image
-            ctx.drawImage(img, 0, 0);
+            // If not skeletonizing, just draw the original image at its natural size
+            ctx.drawImage(img, 0, 0, img.width, img.height);
             
-            // Create a dummy processedImage object
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            // Create a dummy processedImage object with correct dimensions
+            const imageData = ctx.getImageData(0, 0, img.width, img.height);
             processedImage = {
               skeleton: imageData,
               originalWidth: img.width,
