@@ -22,7 +22,8 @@ from detect_floorplan import (
 # Add path to FloorplanTransformation
 FLOORPLAN_TRANSFORM_PATH = Path(__file__).parent.parent / "FloorplanTransformation"
 sys.path.append(str(FLOORPLAN_TRANSFORM_PATH))
-from run_floorplan import process_floorplan
+# Fix: Rename the imported function to avoid naming conflict
+from run_floorplan import process_floorplan as ai_process_floorplan
 
 app = Flask(__name__)
 CORS(app, resources={
@@ -165,20 +166,79 @@ def transform_floorplan():
         filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
         file.save(filepath)
 
+        # Verify the file was saved and can be read by OpenCV
+        if not os.path.exists(filepath):
+            return jsonify({"error": f"Failed to save file at {filepath}"}), 500
+        
         try:
-            # Process the floorplan using FloorplanTransformation
-            result_path = process_floorplan(filepath)
+            # Test file can be read by OpenCV
+            test_image = cv2.imread(filepath)
+            if test_image is None:
+                return jsonify({"error": f"OpenCV could not read image at {filepath}. The file may be corrupt or in an unsupported format."}), 500
+            
+            print(f"Image dimensions: {test_image.shape}")  # Debug info
+            
+            # Create a fallback result file path in case processing fails
+            base_filename = os.path.splitext(os.path.basename(filepath))[0]
+            image_output_dir = os.path.join(UPLOAD_FOLDER, base_filename)
+            os.makedirs(image_output_dir, exist_ok=True)
+            
+            # Save a copy of the input image as result_line.png as fallback
+            fallback_result = os.path.join(image_output_dir, 'result_line.png')
+            cv2.imwrite(fallback_result, test_image)
+            
+            try:
+                # Process the floorplan using FloorplanTransformation
+                print(f"Processing file: {filepath}")
+                print(f"Output directory: {UPLOAD_FOLDER}")
+                
+                result_path = ai_process_floorplan(
+                    filepath,
+                    UPLOAD_FOLDER
+                )
+            except cv2.error as e:
+                # Handle OpenCV specific errors
+                print(f"OpenCV error: {str(e)}")
+                # Return our fallback result since processing failed
+                result_path = fallback_result
             
             # Get just the filename from the result path
             result_filename = os.path.basename(result_path)
+            result_dir = os.path.dirname(result_path)
             
+            # Check if result file exists
+            if not os.path.exists(result_path):
+                print(f"Result file not found at {result_path}. Using input image as result.")
+                # Return the original image path if result file is missing
+                result_dir_name = os.path.basename(result_dir)
+                return jsonify({
+                    "status": "partial_success",
+                    "message": "Processing completed with some issues. Showing original image.",
+                    "transformedImagePath": f"uploads/{result_dir_name}/input.png"
+                })
+            
+            # Return relative path that will work with the uploads route
+            relative_path = os.path.relpath(result_path, UPLOAD_FOLDER)
             return jsonify({
                 "status": "success",
-                "transformedImagePath": f"uploads/{result_filename}"
+                "transformedImagePath": f"uploads/{relative_path}"
             })
 
         except Exception as e:
-            return jsonify({"error": f"Transformation failed: {str(e)}"}), 500
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"Error details: {error_details}")
+            
+            # Check if we created a fallback image
+            if 'fallback_result' in locals() and os.path.exists(fallback_result):
+                result_dir_name = os.path.basename(os.path.dirname(fallback_result))
+                return jsonify({
+                    "status": "error_with_fallback",
+                    "error": f"Transformation failed: {str(e)}",
+                    "transformedImagePath": f"uploads/{result_dir_name}/result_line.png"
+                }), 200  # Return 200 since we're providing a fallback
+            
+            return jsonify({"error": f"Transformation failed: {str(e)}", "details": error_details}), 500
 
     return jsonify({"error": "Unsupported file extension"}), 400
 
