@@ -13,7 +13,8 @@ import {
   showTSResults, 
   handleSonnetCheckboxDependencies, 
   handleO1CheckboxDependencies,
-  switchTab 
+  switchTab,
+  showTransformResults 
 } from './js/ui.js';
 
 import { 
@@ -68,6 +69,7 @@ const canvas = document.getElementById('floorplanCanvas');
 const canvasContainer = document.getElementById('canvasContainer');
 const ctx = canvas.getContext('2d');
 const scanTsButton = document.getElementById('scanTsButton');
+const scanAiButton = document.getElementById('scanAiButton');
 const apiResultsTab = document.getElementById('apiResultsTab');
 const tsResultsTab = document.getElementById('tsResultsTab');
 const resultsStatusContainer = document.getElementById('resultsStatusContainer');
@@ -76,6 +78,8 @@ const resultsStatusContainer = document.getElementById('resultsStatusContainer')
 const ts2ResultsTab = document.getElementById('ts2ResultsTab');
 const ts2ResultContainer = document.getElementById('ts2ResultContainer');
 const scanTs2Button = document.getElementById('scanTs2Button');
+const aiResultContainer = document.getElementById('aiResultContainer');
+const aiResultsTab = document.getElementById('aiResultsTab');
 
 // Get references to Sonnet checkbox elements
 const skeletonizeCheck = document.getElementById('skeletonizeCheck');
@@ -147,10 +151,11 @@ function handleFileChange(e) {
       selectedFile = file;
       previewURL = URL.createObjectURL(file);
       
-      // Enable both scan buttons
+      // Enable scan buttons
       scanButton.disabled = false;
       scanTsButton.disabled = false;
       scanTs2Button.disabled = false;
+      scanAiButton.disabled = false;
 
       // Create and show preview image
       const previewImg = new Image();
@@ -228,6 +233,65 @@ async function handleScanClick(strategyType) {
 }
 
 /**
+ * Handle scan button click for AI processing
+ */
+async function handleAiScanClick() {
+    if (!selectedFile) {
+        updateStatus('No file selected!', statusContainer);
+        return;
+    }
+
+    try {
+        updateStatus('Processing with AI...', statusContainer);
+        updateResultsStatus('Processing with AI...', resultsStatusContainer);
+
+        const formData = new FormData();
+        formData.append('image', selectedFile);
+
+        const baseUrl = `http://${window.location.hostname}:5000`;
+        const response = await fetch(`${baseUrl}/transform-floorplan`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Server error: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        updateStatus('AI Processing complete!', statusContainer);
+        updateResultsStatus('AI Processing complete!', resultsStatusContainer);
+
+        if (data.transformedImagePath) {
+            const transformedURL = `${baseUrl}/${data.transformedImagePath}`;
+            showTransformResults(transformedURL, aiResultContainer);
+
+            // Switch to AI results tab
+            switchTab({
+                tabName: 'ai',
+                apiResultsTab,
+                tsResultsTab,
+                ts2ResultsTab,
+                aiResultsTab,
+                apiResultContainer,
+                tsResultContainer,
+                ts2ResultContainer,
+                aiResultContainer,
+                canvasContainer,
+                annotatedURL: transformedURL,
+                canvas,
+                tsImageProcessed: false
+            });
+        }
+    } catch (err) {
+        console.error(err);
+        updateStatus(`Error: ${err.message}`, statusContainer);
+        updateResultsStatus(`Error: ${err.message}`, resultsStatusContainer);
+    }
+}
+
+/**
  * Handle clear button click
  */
 function handleClear() {
@@ -245,6 +309,7 @@ function handleClear() {
   scanButton.disabled = true;
   scanTsButton.disabled = true;
   scanTs2Button.disabled = true;
+  scanAiButton.disabled = true;
   
   // Reset Sonnet checkboxes to default
   skeletonizeCheck.checked = true;
@@ -265,6 +330,7 @@ function handleClear() {
   apiResultContainer.innerHTML = '';
   tsResultContainer.innerHTML = '';
   ts2ResultContainer.innerHTML = '';
+  aiResultContainer.innerHTML = '';
   updateStatus('', statusContainer);
   updateResultsStatus('', resultsStatusContainer);
   
@@ -280,9 +346,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Event Handlers
   fileInput.addEventListener('change', handleFileChange);
   scanButton.addEventListener('click', () => handleScanClick(FloorplanProcessingStrategy.PYTHON_API));
-  clearButton.addEventListener('click', handleClear);
   scanTsButton.addEventListener('click', () => handleScanClick(FloorplanProcessingStrategy.TS_PROCESSOR));
   scanTs2Button.addEventListener('click', () => handleScanClick(FloorplanProcessingStrategy.O1_PROCESSOR));
+  scanAiButton.addEventListener('click', handleAiScanClick);
+  clearButton.addEventListener('click', handleClear);
   
   // Add slider value update handlers
   thresholdInput.addEventListener('input', () => {
@@ -316,8 +383,8 @@ document.addEventListener('DOMContentLoaded', () => {
   apiResultsTab.addEventListener('click', () => 
     switchTab({
       tabName: 'api',
-      apiResultsTab, tsResultsTab, ts2ResultsTab,
-      apiResultContainer, tsResultContainer, ts2ResultContainer,
+      apiResultsTab, tsResultsTab, ts2ResultsTab, aiResultsTab,
+      apiResultContainer, tsResultContainer, ts2ResultContainer, aiResultContainer,
       canvasContainer, annotatedURL, canvas, tsImageProcessed,
       handleScanClick, FloorplanProcessingStrategy
     })
@@ -326,8 +393,8 @@ document.addEventListener('DOMContentLoaded', () => {
   tsResultsTab.addEventListener('click', () => 
     switchTab({
       tabName: 'ts',
-      apiResultsTab, tsResultsTab, ts2ResultsTab,
-      apiResultContainer, tsResultContainer, ts2ResultContainer,
+      apiResultsTab, tsResultsTab, ts2ResultsTab, aiResultsTab,
+      apiResultContainer, tsResultContainer, ts2ResultContainer, aiResultContainer,
       canvasContainer, annotatedURL, canvas, tsImageProcessed,
       handleScanClick, FloorplanProcessingStrategy
     })
@@ -336,8 +403,18 @@ document.addEventListener('DOMContentLoaded', () => {
   ts2ResultsTab.addEventListener('click', () => 
     switchTab({
       tabName: 'ts2',
-      apiResultsTab, tsResultsTab, ts2ResultsTab,
-      apiResultContainer, tsResultContainer, ts2ResultContainer,
+      apiResultsTab, tsResultsTab, ts2ResultsTab, aiResultsTab,
+      apiResultContainer, tsResultContainer, ts2ResultContainer, aiResultContainer,
+      canvasContainer, annotatedURL, canvas, tsImageProcessed,
+      handleScanClick, FloorplanProcessingStrategy
+    })
+  );
+
+  aiResultsTab.addEventListener('click', () => 
+    switchTab({
+      tabName: 'ai',
+      apiResultsTab, tsResultsTab, ts2ResultsTab, aiResultsTab,
+      apiResultContainer, tsResultContainer, ts2ResultContainer, aiResultContainer,
       canvasContainer, annotatedURL, canvas, tsImageProcessed,
       handleScanClick, FloorplanProcessingStrategy
     })

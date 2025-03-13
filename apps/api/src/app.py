@@ -2,6 +2,8 @@
 import os
 import uuid
 import numpy as np
+import sys
+from pathlib import Path
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS  # Add this import
@@ -16,6 +18,11 @@ from detect_floorplan import (
     detect_straight_walls_hough,
     fit_line_to_clustered_points
 )
+
+# Add path to FloorplanTransformation
+FLOORPLAN_TRANSFORM_PATH = Path(__file__).parent.parent / "FloorplanTransformation"
+sys.path.append(str(FLOORPLAN_TRANSFORM_PATH))
+from run_floorplan import process_floorplan
 
 app = Flask(__name__)
 CORS(app, resources={
@@ -135,6 +142,45 @@ def process_floorplan():
 
     else:
         return jsonify({"error": "Unsupported file extension"}), 400
+
+@app.route('/transform-floorplan', methods=['POST'])
+def transform_floorplan():
+    """
+    Endpoint for FloorplanTransformation processing.
+    Expects:
+      - 'image': File upload
+    Returns JSON with the path to processed image
+    """
+    if 'image' not in request.files:
+        return jsonify({"error": "No file part named 'image' in request"}), 400
+
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+
+    if file and allowed_file(file.filename):
+        # Save uploaded file
+        filename = secure_filename(file.filename)
+        unique_filename = f"{uuid.uuid4()}_{filename}"
+        filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
+        file.save(filepath)
+
+        try:
+            # Process the floorplan using FloorplanTransformation
+            result_path = process_floorplan(filepath)
+            
+            # Get just the filename from the result path
+            result_filename = os.path.basename(result_path)
+            
+            return jsonify({
+                "status": "success",
+                "transformedImagePath": f"uploads/{result_filename}"
+            })
+
+        except Exception as e:
+            return jsonify({"error": f"Transformation failed: {str(e)}"}), 500
+
+    return jsonify({"error": "Unsupported file extension"}), 400
 
 if __name__ == '__main__':
     # Start dev server

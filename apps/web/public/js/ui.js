@@ -37,6 +37,18 @@ export function showTSResults(corners, clusteredPoints, lines, tsResultContainer
     `;
 }
 
+// Show AI Transformation results
+export function showTransformResults(imageUrl, aiResultContainer) {
+    aiResultContainer.innerHTML = `
+        <div>
+            <h3>AI Results:</h3>
+            <p>Successfully transformed the floorplan image.</p>
+            <img src="${imageUrl}" alt="AI Transformed Floorplan" 
+                 style="max-width: 100%; height: auto; border: 1px solid #ccc" />
+        </div>
+    `;
+}
+
 // Handle Sonnet checkbox dependencies
 export function handleSonnetCheckboxDependencies(skeletonizeCheck, cornersCheck, clusterCheck, linesCheck) {
     // If skeletonize is unchecked, disable all others
@@ -82,65 +94,42 @@ export function handleO1CheckboxDependencies(o1SkeletonizeCheck, o1CornersCheck,
 }
 
 // Handle tab switching functionality
-export function switchTab({tabName, apiResultsTab, tsResultsTab, ts2ResultsTab, apiResultContainer, 
-    tsResultContainer, ts2ResultContainer, canvasContainer, annotatedURL, canvas, 
-    tsImageProcessed, handleScanClick, FloorplanProcessingStrategy}) {
+export function switchTab({
+    tabName, apiResultsTab, tsResultsTab, ts2ResultsTab, aiResultsTab,
+    apiResultContainer, tsResultContainer, ts2ResultContainer, aiResultContainer,
+    canvasContainer, annotatedURL, canvas, tsImageProcessed, handleScanClick, FloorplanProcessingStrategy
+}) {
+    // Remove active class from all tabs
+    apiResultsTab.classList.remove('active');
+    tsResultsTab.classList.remove('active');
+    ts2ResultsTab.classList.remove('active');
+    aiResultsTab.classList.remove('active');
     
-    if (tabName === 'api') {
-        // Show API results
-        apiResultsTab.classList.add('active');
-        tsResultsTab.classList.remove('active');
-        ts2ResultsTab.classList.remove('active');
-        
-        // Show API content
-        apiResultContainer.style.display = 'block';
-        tsResultContainer.style.display = 'none';
-        ts2ResultContainer.style.display = 'none';
-        
-        // Hide the canvas for API results, show the image instead
-        if (canvasContainer) {
-            canvasContainer.style.display = 'none';
-        }
-        
-        // If we have an API result image, we don't need the canvas
-        if (annotatedURL) {
-            clearCanvas(canvas.getContext('2d'), canvas);
-        }
-    } else if (tabName === 'ts') {
-        // Show TS results
-        apiResultsTab.classList.remove('active');
-        tsResultsTab.classList.add('active');
-        ts2ResultsTab.classList.remove('active');
-        
-        // Show TS content
-        apiResultContainer.style.display = 'none';
-        tsResultContainer.style.display = 'block';
-        ts2ResultContainer.style.display = 'none';
-        
-        // Show the canvas for TS results
-        if (canvasContainer) {
-            canvasContainer.style.display = 'flex';
-        }
-        
-        // If we have processed the image with TS and have lost the canvas, recreate it
-        if (tsImageProcessed && canvas.width === 0) {
-            // Re-process the image
-            handleScanClick(FloorplanProcessingStrategy.TS_PROCESSOR);
-        }
-    } else if (tabName === 'ts2') {
-        // Show TS O(1) results
-        apiResultsTab.classList.remove('active');
-        tsResultsTab.classList.remove('active');
-        ts2ResultsTab.classList.add('active');
-        
-        // Show TS O(1) content
-        apiResultContainer.style.display = 'none';
-        tsResultContainer.style.display = 'none';
-        ts2ResultContainer.style.display = 'block';
-        
-        // Hide the canvas for TS O(1) results
-        if (canvasContainer) {
-            canvasContainer.style.display = 'none';
-        }
+    // Hide all result containers
+    apiResultContainer.style.display = 'none';
+    tsResultContainer.style.display = 'none';
+    ts2ResultContainer.style.display = 'none';
+    aiResultContainer.style.display = 'none';
+    canvasContainer.style.display = 'none';
+    
+    // Show selected tab content
+    switch (tabName) {
+        case 'api':
+            apiResultsTab.classList.add('active');
+            apiResultContainer.style.display = 'block';
+            break;
+        case 'ts':
+            tsResultsTab.classList.add('active');
+            tsResultContainer.style.display = 'block';
+            canvasContainer.style.display = tsImageProcessed ? 'block' : 'none';
+            break;
+        case 'ts2':
+            ts2ResultsTab.classList.add('active');
+            ts2ResultContainer.style.display = 'block';
+            break;
+        case 'ai':
+            aiResultsTab.classList.add('active');
+            aiResultContainer.style.display = 'block';
+            break;
     }
 }
