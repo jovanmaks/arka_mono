@@ -150,22 +150,25 @@ def transform_floorplan():
     Endpoint for FloorplanTransformation processing.
     Expects:
       - 'image': File upload
+      - 'visualizationType': Optional parameter to select visualization type
+        (all_corners, wall_corners, door_corners, icon_corners, etc.)
     Returns JSON with the path to processed image
     """
     if 'image' not in request.files:
         return jsonify({"error": "No file part named 'image' in request"}), 400
-
     file = request.files['image']
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
-
     if file and allowed_file(file.filename):
         # Save uploaded file
         filename = secure_filename(file.filename)
         unique_filename = f"{uuid.uuid4()}_{filename}"
         filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
         file.save(filepath)
-
+        
+        # Get visualization type from request
+        visualization_type = request.form.get('visualizationType', 'all_corners')
+        
         # Verify the file was saved and can be read by OpenCV
         if not os.path.exists(filepath):
             return jsonify({"error": f"Failed to save file at {filepath}"}), 500
@@ -177,6 +180,7 @@ def transform_floorplan():
                 return jsonify({"error": f"OpenCV could not read image at {filepath}. The file may be corrupt or in an unsupported format."}), 500
             
             print(f"Image dimensions: {test_image.shape}")  # Debug info
+            print(f"Selected visualization type: {visualization_type}")  # Debug info
             
             # Create a fallback result file path in case processing fails
             base_filename = os.path.splitext(os.path.basename(filepath))[0]
@@ -194,7 +198,8 @@ def transform_floorplan():
                 
                 result_path = ai_process_floorplan(
                     filepath,
-                    UPLOAD_FOLDER
+                    UPLOAD_FOLDER,
+                    visualization_type=visualization_type
                 )
             except cv2.error as e:
                 # Handle OpenCV specific errors
@@ -214,16 +219,17 @@ def transform_floorplan():
                 return jsonify({
                     "status": "partial_success",
                     "message": "Processing completed with some issues. Showing original image.",
-                    "transformedImagePath": f"uploads/{result_dir_name}/input.png"
+                    "transformedImagePath": f"uploads/{result_dir_name}/input.png",
+                    "visualizationType": visualization_type
                 })
             
             # Return relative path that will work with the uploads route
             relative_path = os.path.relpath(result_path, UPLOAD_FOLDER)
             return jsonify({
                 "status": "success",
-                "transformedImagePath": f"uploads/{relative_path}"
+                "transformedImagePath": f"uploads/{relative_path}",
+                "visualizationType": visualization_type
             })
-
         except Exception as e:
             import traceback
             error_details = traceback.format_exc()
@@ -235,11 +241,11 @@ def transform_floorplan():
                 return jsonify({
                     "status": "error_with_fallback",
                     "error": f"Transformation failed: {str(e)}",
-                    "transformedImagePath": f"uploads/{result_dir_name}/result_line.png"
+                    "transformedImagePath": f"uploads/{result_dir_name}/result_line.png",
+                    "visualizationType": visualization_type
                 }), 200  # Return 200 since we're providing a fallback
             
             return jsonify({"error": f"Transformation failed: {str(e)}", "details": error_details}), 500
-
     return jsonify({"error": "Unsupported file extension"}), 400
 
 if __name__ == '__main__':

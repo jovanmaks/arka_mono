@@ -247,33 +247,35 @@ async function handleAiScanClick() {
         updateStatus('No file selected!', statusContainer);
         return;
     }
-
     try {
         updateStatus('Processing with AI...', statusContainer);
         updateResultsStatus('Processing with AI...', resultsStatusContainer);
-
+        
         const formData = new FormData();
         formData.append('image', selectedFile);
-
+        
+        // Get the selected visualization type
+        const selectedVisualization = document.querySelector('input[name="aiVisualization"]:checked').value;
+        formData.append('visualizationType', selectedVisualization);
+        
         const baseUrl = `http://${window.location.hostname}:5000`;
         const response = await fetch(`${baseUrl}/transform-floorplan`, {
             method: 'POST',
             body: formData,
         });
-
+        
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
             throw new Error(errorData.error || `Server error: ${response.statusText}`);
         }
-
+        
         const data = await response.json();
         updateStatus('AI Processing complete!', statusContainer);
         updateResultsStatus('AI Processing complete!', resultsStatusContainer);
-
+        
         if (data.transformedImagePath) {
             const transformedURL = `${baseUrl}/${data.transformedImagePath}`;
             showTransformResults(transformedURL, aiResultContainer);
-
             // Switch to AI results tab
             switchTab({
                 tabName: 'ai',

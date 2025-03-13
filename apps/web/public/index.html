@@ -231,21 +231,39 @@
             </div>
           </div>
 
-          <!-- Processing options (checkboxes) for AI implementation -->
+          <!-- Processing options (radio buttons) for AI implementation -->
           <div class="process-options">
             <h4>AI Processing:</h4>
             <div class="checkbox-group">
               <label>
-                <input type="checkbox" id="aiSkeletonizeCheck" checked /> Skeletonize
+                <input type="radio" name="aiVisualization" value="all_corners" checked /> All Corners
               </label>
               <label>
-                <input type="checkbox" id="aiCornersCheck" /> Detect Corners
+                <input type="radio" name="aiVisualization" value="wall_corners" /> Wall Corners
               </label>
               <label>
-                <input type="checkbox" id="aiClusterCheck" /> Cluster Points
+                <input type="radio" name="aiVisualization" value="door_corners" /> Door Corners
               </label>
               <label>
-                <input type="checkbox" id="aiLinesCheck" /> Detect Lines
+                <input type="radio" name="aiVisualization" value="icon_corners" /> Icon Corners
+              </label>
+              <label>
+                <input type="radio" name="aiVisualization" value="corner_heatmap" /> Corner Heatmap
+              </label>
+              <label>
+                <input type="radio" name="aiVisualization" value="icon_heatmap" /> Icon Heatmap
+              </label>
+              <label>
+                <input type="radio" name="aiVisualization" value="room_heatmap" /> Room Heatmap
+              </label>
+              <label>
+                <input type="radio" name="aiVisualization" value="result_line" /> Result Lines
+              </label>
+              <label>
+                <input type="radio" name="aiVisualization" value="result_door" /> Result Doors
+              </label>
+              <label>
+                <input type="radio" name="aiVisualization" value="result_icon" /> Result Icons
               </label>
             </div>
           </div>
